@@ -11,6 +11,7 @@ from textual.widgets.tree import TreeNode
 
 from .models import Task
 from .editor import TitleEditor
+from .scrolling import center_task_row
 
 
 class TaskTree(Tree[Task], inherit_bindings=False):
@@ -66,6 +67,10 @@ class TaskTree(Tree[Task], inherit_bindings=False):
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         return self.editor is None
+
+    def scroll_to_line(self, line: int, animate: bool = False) -> None:
+        if self.editor is None:
+            center_task_row(self, line)
 
     def action_toggle_node(self) -> None:
         node = self.cursor_node

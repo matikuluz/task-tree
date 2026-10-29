@@ -1,3 +1,4 @@
+from conftest import centered_scroll
 from pathlib import Path
 
 import pytest
@@ -59,29 +60,29 @@ async def test_viewport_boundary_and_resize():
     async with app.run_test(size=(60, 13)) as pilot:
         tree = app.query_one(TaskTree)
         assert tree.scrollable_content_region.height == 10
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press(*(["down"] * 9))
         assert tree.cursor_line == 9
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("down")
         assert tree.cursor_line == 10
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("up")
         assert tree.cursor_line == 9
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press(*(["up"] * 8))
         assert tree.cursor_line == 1
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("up")
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press(*(["down"] * 39))
         assert tree.cursor_line == 39
-        assert tree.scroll_y == 30  # no blank padding at bottom
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.resize_terminal(40, 9)
         await pilot.pause()
         assert tree.scroll_y <= tree.cursor_line < tree.scroll_y + tree.scrollable_content_region.height
         await pilot.press("up")
-        assert tree.scroll_y == 34
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.resize_terminal(80, 20)
         await pilot.pause()
         assert tree.scroll_y <= tree.cursor_line < tree.scroll_y + tree.scrollable_content_region.height
@@ -94,12 +95,12 @@ async def test_nested_scroll_and_collapse():
         tree = app.query_one(TaskTree)
         await pilot.press(*(["down"] * 10))
         assert tree.cursor_node.data.id == "9"
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("up")
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press(*(["up"] * 9), "space")
         assert tree.last_line == 1
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("down")
         assert tree.cursor_node.data.id == "last"
 
@@ -198,20 +199,20 @@ async def test_sibling_jumps_scroll_only_to_keep_selection_visible():
         assert tree.scrollable_content_region.height == 10
         await pilot.press("shift+down")
         assert tree.cursor_node.data.id == "next"
-        assert tree.scroll_y == 17
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("shift+down")
         assert tree.cursor_node.data.id == "last"
-        assert tree.scroll_y == 18
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("shift+up")
         assert tree.cursor_node.data.id == "next"
-        assert tree.scroll_y == 18  # already visible: no scrolling
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("shift+up")
         assert tree.cursor_node.data.id == "branch"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         assert tree.cursor_node.is_expanded
         await pilot.press("space", "shift+down")
         assert tree.cursor_node.data.id == "next"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("shift+up")
         assert not tree.cursor_node.is_expanded
 

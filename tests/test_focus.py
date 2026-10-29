@@ -1,3 +1,4 @@
+from conftest import centered_scroll
 from tasktree.app import TaskTreeApp
 from tasktree.models import Task
 from tasktree.tree import TaskTree
@@ -120,13 +121,13 @@ async def test_focus_scrolling_return_and_resize():
         tree = app.query_one(TaskTree)
         await pilot.press("shift+down", "f")
         assert selected_id(tree) == "1-0"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press(*(["down"] * 9))
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("down")
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("up")
-        assert tree.scroll_y == 1
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("shift+down")
         assert selected_id(tree) == "1-10"
         await pilot.resize_terminal(40, 8)

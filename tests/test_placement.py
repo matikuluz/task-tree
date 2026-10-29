@@ -1,3 +1,4 @@
+from conftest import centered_scroll
 import json
 import pytest
 
@@ -190,17 +191,17 @@ async def test_placement_scrolling_is_minimal_and_does_not_wrap():
         await pilot.press("enter", "home")
         screen = app.screen
         options = screen.query_one(PlacementTree)
-        assert options.scroll_y == 0
+        assert options.scroll_y == centered_scroll(options)
         await pilot.press(*(["down"] * 8))
         assert screen.model.current.index == 8
-        assert options.scroll_y == 0
+        assert options.scroll_y == centered_scroll(options)
         await pilot.press("down")
         assert screen.model.current.index == 9
-        assert options.scroll_y == 0
+        assert options.scroll_y == centered_scroll(options)
         await pilot.press("down")
-        assert options.scroll_y == 1
+        assert options.scroll_y == centered_scroll(options)
         await pilot.press("up")
-        assert options.scroll_y == 1
+        assert options.scroll_y == centered_scroll(options)
         await pilot.press("end")
         assert screen.model.current.index == 35
         last_scroll = options.scroll_y
@@ -211,7 +212,7 @@ async def test_placement_scrolling_is_minimal_and_does_not_wrap():
         assert options.scroll_y > 0
         await pilot.press("home", "up")
         assert screen.model.selected == 0
-        assert options.scroll_y == 0
+        assert options.scroll_y == centered_scroll(options)
 
 
 async def test_placement_only_saves_expansion_preferences(tmp_path):

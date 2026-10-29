@@ -1,3 +1,4 @@
+from conftest import centered_scroll
 import pytest
 from textual.widgets import Input, TextArea
 
@@ -49,7 +50,7 @@ async def test_root_shortcut_is_noop_on_descendant_at_root_and_empty_tree():
         scroll = tree.scroll_y
         await pilot.press("r")
         assert tree.cursor_node is selected
-        assert tree.scroll_y == scroll
+        assert tree.scroll_y == centered_scroll(tree)
     empty = TaskTreeApp("Repo", [])
     async with empty.run_test() as pilot:
         await pilot.press("r", "R", "escape")
@@ -68,10 +69,10 @@ async def test_return_to_root_selects_ancestor_and_scrolls_minimally(root_index)
         tree = app.query_one(TaskTree)
         await pilot.press(*(["shift+down"] * root_index), "f", "f")
         assert tree.cursor_node.data.id == "leaf"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("r")
         assert tree.cursor_node.data.id == "branch"
-        assert tree.scroll_y == max(0, root_index - 9)
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("escape")
         assert tree.cursor_node.data.id == "branch"
 

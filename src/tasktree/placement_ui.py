@@ -13,6 +13,7 @@ from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
 
 from .placement import PlacementModel, PlacementRow
+from .scrolling import center_task_row
 
 
 class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
@@ -33,6 +34,9 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
         if selected:
             text.stylize("bold")
         return text
+
+    def scroll_to_line(self, line: int, animate: bool = False) -> None:
+        center_task_row(self, line)
 
     def _toggle_node(self, node: TreeNode[PlacementRow]) -> None:
         # Disclosure clicks follow the same model/save path as placement's Space key.
@@ -71,6 +75,7 @@ class PlacementScreen(ModalScreen[None]):
         self.repository_name = repository_name
         self.model = model
         self._anchor = anchor
+        self._centering_started = False
         self._save_expansion = save_expansion
 
     def compose(self) -> ComposeResult:
@@ -121,21 +126,24 @@ class PlacementScreen(ModalScreen[None]):
             # Textual 8.2.8 uses this visual flag to color a branch's native guides.
             # The cursor stays on the temporary row; task data and labels are unaffected.
             selected.parent._selected = True
-        if self._anchor is None:
+        if self._centering_started:
             tree.scroll_to_line(tree.cursor_line, animate=False)
         tree.refresh()
         path = " / ".join(["Root", *(task.title for task in self.model.path)])
         self.query_one("#placement-path", Static).update(Text(f"{self.repository_name} | {path} | Add"))
 
     def action_move(self, delta: int) -> None:
+        self._centering_started = True
         self.model.move(delta)
         self._render_entries()
 
     def action_boundary(self, end: bool) -> None:
+        self._centering_started = True
         self.model.boundary(end)
         self._render_entries()
 
     def action_toggle(self) -> None:
+        self._centering_started = True
         entry = self.model.current
         if entry.kind == "folder" and self._save_expansion is not None:
             expanded = not self.model.expanded.get(entry.task.id, entry.task.expanded)
@@ -145,6 +153,7 @@ class PlacementScreen(ModalScreen[None]):
         self._render_entries()
 
     def action_activate(self) -> None:
+        self._centering_started = True
         if not self.model.enter():
             self.notify("Task creation — coming soon", timeout=2, markup=False)
         self._render_entries()
@@ -160,6 +169,9 @@ class PlacementScreen(ModalScreen[None]):
 
     def _keep_selection_visible(self) -> None:
         tree = self.query_one(PlacementTree)
+        if self._centering_started:
+            tree.scroll_to_line(tree.cursor_line, animate=False)
+            return
         if self._anchor is not None:
             task_id, viewport_y = self._anchor
             for line in range(tree.last_line + 1):

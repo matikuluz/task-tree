@@ -1,3 +1,4 @@
+from conftest import centered_scroll
 import pytest
 from textual.widgets import Input, TextArea
 
@@ -68,23 +69,23 @@ async def test_boundary_scrolling_is_minimal_and_boundary_noops(focused):
         assert tree.scrollable_content_region.height == 10
         await pilot.press(*(["down"] * 4), "home")
         assert tree.cursor_node.data.id == "0"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("end")
         assert tree.cursor_node.data.id == "39"
-        assert tree.scroll_y == 30
+        assert tree.scroll_y == centered_scroll(tree)
         selected = tree.cursor_node
         await pilot.press("end")
         assert tree.cursor_node is selected
-        assert tree.scroll_y == 30
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("up")
-        assert tree.scroll_y == 30
+        assert tree.scroll_y == centered_scroll(tree)
         await pilot.press("home")
         assert tree.cursor_node.data.id == "0"
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
         selected = tree.cursor_node
         await pilot.press("home")
         assert tree.cursor_node is selected
-        assert tree.scroll_y == 0
+        assert tree.scroll_y == centered_scroll(tree)
 
 
 async def test_empty_tree_and_single_row_scope():

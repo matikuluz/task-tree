@@ -56,8 +56,11 @@ an edited title updates that title atomically.
 Saved branch expansion is restored, with the first visible task selected.
 Older tasks without an expanded field default to expanded. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
-are clipped at the right edge. Scrolling moves only far enough to keep selection
-visible, without animation or centring. Empty files show `No tasks yet.`
+are clipped at the right edge. Navigation keeps selection near the task-area midpoint, immediately and without
+animation. The viewport stays at the top until selection reaches that midpoint,
+and stops at the bottom when the final row is visible. Short lists do not scroll
+or gain blank padding. Header, footer, and action bar are excluded from the
+midpoint, which is recalculated on resize. Empty files show `No tasks yet.`
 
 Sibling navigation works at every nesting level, including top-level tasks. At
 the first or last sibling, movement in that direction does nothing: it never
@@ -66,8 +69,7 @@ jumps use the same scrolling behaviour as ordinary navigation.
 
 Home / End jump to the first / last visible task at Root or within the
 current focused branch, skipping descendants of collapsed tasks. These jumps
-preserve expansion and the selected bottom-bar action, scrolling only as far as
-needed without centring. At the relevant boundary or in an empty scope they do
+preserve expansion and the selected bottom-bar action, using the same centred scrolling with natural limits. At the relevant boundary or in an empty scope they do
 nothing. During search or text editing, Home / End retain their normal input
 cursor behaviour without navigating tasks. Ctrl + Up / Down are not bound to
 tree navigation; there are no T / B alternatives.
@@ -83,7 +85,7 @@ At Root, Escape does nothing; F on a leaf does nothing. Enter activates the
 selected bottom-bar action while browsing.
 
 R exits all nested focus scopes at once, clears the focus path, and selects the
-top-level ancestor of the previously selected task. It scrolls only as needed to
+top-level ancestor of the previously selected task. It uses centred scrolling with natural limits to
 reveal that task, preserving expansion states and the selected bottom-bar action.
 At Root (including an empty tree), R does nothing. In search and other text
 inputs, r types normally. Escape continues to return just one hierarchy level.
@@ -165,7 +167,9 @@ including the guide for a temporary row's insertion parent.
 
 Focused scopes have a selectable `Go back` row at the top; Root does not.
 Collapsed descendants are skipped. Home includes Go back when it is present.
-Scrolling reveals the selected row only as needed, without centring. Placement
+Placement navigation uses the same centred scrolling with natural limits.
+Entering Add preserves the existing viewport; centring begins with subsequent
+navigation, and cancelling restores browsing. Inline editing remains stationary. Placement
 has its own keyboard help: search, editing, action selection, F, R, sibling
 shortcuts, and quit are inactive, so F cannot bypass folder-entry controls.
 
