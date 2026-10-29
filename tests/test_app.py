@@ -231,7 +231,7 @@ async def test_open_close_does_not_write(tmp_path):
         app.screen.query_one(Input).value = "Implementation/Storage/"
         await pilot.pause()
         await pilot.press("enter")
-        await pilot.press("right", "enter", "left", "enter")
+        await pilot.press("right", "enter", "escape", "left", "enter")
         await pilot.press("r")
         await pilot.press("f", "f", "escape", "space", "escape", "space", "down", "space", "Q")
     assert store.path.read_bytes() == before

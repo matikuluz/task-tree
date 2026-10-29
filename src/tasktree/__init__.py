@@ -1,1 +1,1 @@
-"""Read-only task trees for Git repositories."""
+"""Terminal task trees for Git repositories."""

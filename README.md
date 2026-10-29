@@ -1,8 +1,8 @@
 # Tasktree
 
-A first, read-only Python terminal task viewer for Git repositories, built with
-Textual. Selection and branch expansion live only in memory. The bottom action
-bar currently activates placeholders; task editing and saving are not implemented.
+A Python terminal task tree for Git repositories, built with Textual. Selection,
+focus, and branch expansion live only in memory. The bottom bar offers inline
+title editing and an Add placeholder.
 
 ## Install and run
 
@@ -34,7 +34,8 @@ Run commands inside the Git repository you want to view. Subdirectories resolve 
 the checkout root using `git rev-parse --show-toplevel`; linked Git worktrees have
 their own task file. Outside a Git working repository, the command reports an error.
 `init` creates `.tasktree.json` exclusively and refuses to overwrite an existing
-file. `open` requires a valid file and never writes it.
+file. `open` requires a valid file. Browsing does not write it; explicitly saving
+an edited title updates that title atomically.
 
 ## Controls
 
@@ -49,7 +50,7 @@ file. `open` requires a valid file and never writes it.
 | / | Open title search across the entire task tree |
 | Q | Exit |
 | Left / Right | Select a bottom-bar action, wrapping around available actions |
-| Enter | Activate the selected placeholder action |
+| Enter | Activate Add's placeholder or edit the selected task's title |
 
 All branches start expanded, with the first task selected. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
@@ -69,7 +70,7 @@ again on a child branch to focus further. Escape moves to the parent scope,
 selecting the task whose branch you exited; focusing a deeply nested task builds
 the full ancestor path, so Escape still returns one hierarchy level at a time.
 At Root, Escape does nothing; F on a leaf does nothing. Enter activates the
-selected action-bar placeholder while browsing.
+selected bottom-bar action while browsing.
 
 R exits all nested focus scopes at once, clears the focus path, and selects the
 top-level ancestor of the previously selected task. It scrolls only as needed to
@@ -90,13 +91,37 @@ selected item is bold; unselected items show only their bracketed symbol.
 Task selection remains highlighted, and Up / Down, sibling navigation, focus,
 and returning from search preserve the selected action.
 
-Enter shows a temporary, non-blocking notification: `Add task — coming soon`
-or `Edit task — coming soon`. These actions do not create or edit anything.
+Enter on Add shows a temporary, non-blocking notification: `Add task — coming soon`.
+Enter on Edit opens the selected task's inline title editor.
 In an empty tree, Add remains selected and Edit is dimmed and struck through;
 navigation skips unavailable actions. The bar wraps onto extra rows if needed
 when the terminal narrows. During search or text entry the bar is hidden and its
 bindings yield to the input. Enter in search still jumps to a result, and Escape
-still cancels. Actions never modify the task file.
+still cancels. Only an explicitly saved title edit modifies the task file.
+
+## Inline title editing
+
+Select Edit with Left / Right, then press Enter. An input replaces the selected
+task's title in place, preserving the surrounding tree, indentation, expansion,
+selection, and scroll. It starts with the original title, a blinking cursor at
+the end, and no selected text. The action bar is hidden during editing.
+
+Normal text editing works, including Backspace, Delete, Home, End, and Left /
+Right. All browsing shortcuts are suspended: q, f, r, /, and Space type normally,
+Up / Down do not navigate tasks, and Tab keeps focus in the editor.
+
+Enter validates and saves the title. Empty or whitespace-only titles, line
+breaks, and control characters are rejected with a small message beside the
+edited row. Validation and save errors retain the draft so you can correct it
+and press Enter to retry, or Escape to cancel without writing. Saving changes
+only the matching stable ID's title in the latest validated file, preserving IDs,
+children, order, and other task data. A flushed temporary file in the same
+directory is atomically replaced into `.tasktree.json`; a failed replacement
+leaves the original file intact. JSON whitespace may be reformatted on save.
+
+After save or cancellation, the same task and Edit action remain selected and
+the action bar returns. Search results and parent paths use saved titles.
+Add remains a placeholder; task creation is not implemented.
 
 ## Search
 
@@ -223,6 +248,9 @@ selection restoration, and narrow-terminal wrapping.
 Return-to-root tests cover nested scopes, ancestor selection and minimal scrolling,
 expansion and action preservation, root and empty-tree no-ops, unchanged Escape
 navigation, and typing r in search and text inputs.
+Editing tests cover saving and reopening, cancellation, invalid titles, native
+editing keys, shortcut isolation, scrolled-row geometry, preservation of other
+task data, atomic replacement, save failure recovery, and retry or cancellation.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
 `Tree` bindings, `render_label`, cursor clamping, and `scroll_to_line`. The small

@@ -20,7 +20,7 @@ def main(argv: list[str] | None = None) -> int:
             tasks = store.load()
             from .app import TaskTreeApp
 
-            TaskTreeApp(root.name, tasks).run()
+            TaskTreeApp(root.name, tasks, store=store).run()
     except TaskStoreError as error:
         print(f"tasktree: {error}", file=sys.stderr)
         return 1

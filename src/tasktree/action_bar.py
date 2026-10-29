@@ -1,4 +1,4 @@
-"""Persistent selection of placeholder browsing actions."""
+"""Persistent selection of browsing actions."""
 
 from dataclasses import dataclass
 

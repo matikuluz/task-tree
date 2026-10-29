@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Task:
     """A task's stable identity, title, and ordered children."""
 

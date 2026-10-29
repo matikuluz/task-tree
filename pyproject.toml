@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tasktree"
 version = "0.1.0"
-description = "A read-only terminal task tree for Git repositories"
+description = "A terminal task tree for Git repositories"
 requires-python = ">=3.11"
 dependencies = ["textual==8.2.8"]
 

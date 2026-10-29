@@ -5,10 +5,11 @@ from rich.text import Text
 from textual import events
 from textual.binding import Binding
 from textual.message import Message
-from textual.widgets import Tree
+from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
 
 from .models import Task
+from .editor import TitleEditor
 
 
 class TaskTree(Tree[Task], inherit_bindings=False):
@@ -37,6 +38,9 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         self._tasks = tasks
         self._scope_path: list[Task] = []
         self._expanded: dict[str, bool] = {}
+        self.editor: TitleEditor | None = None
+        self._edit_error: Static | None = None
+        self._edit_scroll = (0.0, 0.0)
         self.show_root = False
         self.auto_expand = False
         self.center_scroll = False
@@ -55,6 +59,68 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     def on_mount(self) -> None:
         self.focus()
         self.move_cursor_to_line(0)
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        return self.editor is None
+
+    async def begin_edit(self) -> None:
+        """Overlay an input on the title without rebuilding or moving the tree."""
+        node = self.cursor_node
+        if self.editor is not None or node is None or node.data is None:
+            return
+        self._edit_scroll = (self.scroll_x, self.scroll_y)
+        self.editor = TitleEditor(node.data.title)
+        self._edit_error = Static("", id="title-error", markup=False)
+        self._edit_error.styles.position = "absolute"
+        self._edit_error.styles.height = 1
+        self._edit_error.styles.color = "red"
+        self._edit_error.display = False
+        await self.screen.mount(self.editor, self._edit_error)
+        self._position_editor()
+        self.editor.focus(scroll_visible=False)
+        self.editor.cursor_position = len(self.editor.value)
+
+    def _position_editor(self) -> None:
+        node = self.cursor_node
+        if self.editor is None or node is None:
+            return
+        depth = 0
+        parent = node.parent
+        while parent is not None and parent is not self.root:
+            depth += 1
+            parent = parent.parent
+        # Keep the tree guides, selection marker, and branch disclosure icon visible.
+        x = depth * self.guide_depth + 2 + (2 if node.allow_expand else 0)
+        x = min(x, max(0, self.scrollable_content_region.width - 2))
+        region = self.scrollable_content_region
+        y = region.y + self.cursor_line - int(self.scroll_y)
+        self.editor.styles.offset = (region.x + x, y)
+        self.editor.styles.width = max(1, self.scrollable_content_region.width - x)
+        if self._edit_error is not None:
+            error_y = y + 1 if y + 1 < region.bottom else max(region.y, y - 1)
+            self._edit_error.styles.offset = (region.x + x, error_y)
+            self._edit_error.styles.width = max(1, self.scrollable_content_region.width - x)
+
+    def edit_error(self, message: str) -> None:
+        if self._edit_error is not None:
+            self._edit_error.update(message)
+            self._edit_error.display = True
+
+    async def finish_edit(self, title: str | None = None) -> None:
+        """Apply a successfully saved title, or discard the input on cancellation."""
+        if self.editor is None:
+            return
+        if title is not None and self.cursor_node is not None:
+            self.cursor_node.data.title = title
+            self.cursor_node.set_label(Text(title))
+        editor, error = self.editor, self._edit_error
+        self.editor = None
+        self._edit_error = None
+        await editor.remove()
+        if error is not None:
+            await error.remove()
+        self.focus(scroll_visible=False)
+        self.scroll_to(*self._edit_scroll, animate=False, immediate=True, force=True)
 
     def action_focus_branch(self) -> None:
         """Hide the selected branch root and show its children in a new scope."""
@@ -143,6 +209,7 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     def on_resize(self, event: events.Resize) -> None:
         # Tree rebuilds its geometry on resize; keep the cursor visible afterwards.
         self.call_after_refresh(self._scroll_cursor_into_view)
+        self.call_after_refresh(self._position_editor)
 
     def _scroll_cursor_into_view(self) -> None:
         # A key may have moved the cursor since the resize was queued.

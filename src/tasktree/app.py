@@ -1,4 +1,4 @@
-"""Persistent, read-only Textual task viewer."""
+"""Persistent Textual task viewer with explicit title editing."""
 
 from rich.text import Text
 from textual import events
@@ -7,10 +7,12 @@ from textual.binding import Binding
 from textual.widgets import Static
 
 from .action_bar import ActionBar
+from .editor import TitleEditor
 from .models import Task
 from .search import SearchResult, TaskSearch
 from .search_ui import SearchScreen
 from .tree import TaskTree
+from .store import TaskStore, TaskStoreError, validate_title
 
 
 class TaskTreeApp(App[None]):
@@ -25,7 +27,9 @@ class TaskTreeApp(App[None]):
     ]
     ENABLE_COMMAND_PALETTE = False
     CSS = """
-    Screen { layout: vertical; }
+    Screen { layout: vertical; layers: base editor; }
+    #title-editor, #title-editor:focus { layer: editor; border: none; padding: 0; }
+    #title-error { layer: editor; background: $surface; }
     #repository { height: 1; text-style: bold; padding: 0 1; }
     #tasks { height: 1fr; padding: 0; overflow-x: hidden; }
     #tasks > .tree--cursor { background: transparent; text-style: bold; }
@@ -34,11 +38,12 @@ class TaskTreeApp(App[None]):
     #help { height: 1; padding: 0 1; color: $text-muted; }
     """
 
-    def __init__(self, repository_name: str, tasks: list[Task]) -> None:
+    def __init__(self, repository_name: str, tasks: list[Task], *, store: TaskStore | None = None) -> None:
         super().__init__()
         self.repository_name = repository_name
         self.tasks = tasks
         self.search = TaskSearch(tasks)
+        self.store = store
         self._action_bar = ActionBar(has_task=bool(tasks))
 
     def compose(self) -> ComposeResult:
@@ -53,13 +58,13 @@ class TaskTreeApp(App[None]):
     def _is_browsing(self) -> bool:
         return self.screen is self.screen_stack[0] and (
             self.focused is None or isinstance(self.focused, TaskTree)
-        )
+        ) and not self.query(TitleEditor)
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         if action in {"search", "previous_action", "next_action", "activate_action"}:
             # Priority browsing bindings must yield to text entry and search results.
             return self._is_browsing()
-        if action == "quit" and isinstance(self.screen, SearchScreen):
+        if action == "quit" and (isinstance(self.screen, SearchScreen) or self.query(TitleEditor)):
             return False
         return True
 
@@ -78,10 +83,35 @@ class TaskTreeApp(App[None]):
     def action_next_action(self) -> None:
         self._action_bar.move(1)
 
-    def action_activate_action(self) -> None:
+    async def action_activate_action(self) -> None:
         action = self._action_bar.selected_action
         if self._action_bar.available(action):
-            self.notify(f"{action.label} — coming soon", timeout=2, markup=False)
+            if action.requires_task:
+                await self.query_one(TaskTree).begin_edit()
+                self._update_action_bar()
+            else:
+                self.notify(f"{action.label} — coming soon", timeout=2, markup=False)
+
+    async def on_input_submitted(self, message: TitleEditor.Submitted) -> None:
+        if not isinstance(message.input, TitleEditor):
+            return
+        message.stop()
+        tree = self.query_one(TaskTree)
+        title = message.value
+        try:
+            validate_title(title)
+            if self.store is None:
+                raise TaskStoreError("No task file is connected to this viewer.")
+            self.store.update_title(tree.cursor_node.data.id, title)
+        except TaskStoreError as error:
+            tree.edit_error(str(error))
+            return
+        await tree.finish_edit(title)
+        self._update_action_bar()
+
+    async def on_title_editor_cancelled(self, message: TitleEditor.Cancelled) -> None:
+        await self.query_one(TaskTree).finish_edit()
+        self._update_action_bar()
 
     def _update_action_bar(self) -> None:
         # Visibility preserves layout so canceling search cannot shift the tree viewport.

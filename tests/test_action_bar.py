@@ -67,11 +67,11 @@ async def test_placeholder_activation_is_temporary_and_nonblocking():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("enter", "right", "enter", "down")
+        await pilot.press("enter", "down")
         assert tree.cursor_node.data.id == "b"
         notifications = list(app._notifications)
         assert [notification.message for notification in notifications] == [
-            "Add task — coming soon", "Edit task — coming soon",
+            "Add task — coming soon",
         ]
         assert all(notification.timeout == 2 for notification in notifications)
         await pilot.pause(2.1)
