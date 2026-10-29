@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tasktree"
+version = "0.1.0"
+description = "A read-only terminal task tree for Git repositories"
+requires-python = ">=3.11"
+dependencies = ["textual==8.2.8"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=1"]
+
+[project.scripts]
+tasktree = "tasktree.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
