@@ -1,8 +1,8 @@
 # Tasktree
 
 A first, read-only Python terminal task viewer for Git repositories, built with
-Textual. Selection and branch expansion live only in memory. There is no editing,
-saving, or action console in this milestone.
+Textual. Selection and branch expansion live only in memory. The bottom action
+bar currently activates placeholders; task editing and saving are not implemented.
 
 ## Install and run
 
@@ -47,7 +47,8 @@ file. `open` requires a valid file and never writes it.
 | Escape | Return one scope level and select the branch just exited |
 | / | Open title search across the entire task tree |
 | Q | Exit |
-| Left / Right / Enter | No task action |
+| Left / Right | Select a bottom-bar action, wrapping around available actions |
+| Enter | Activate the selected placeholder action |
 
 All branches start expanded, with the first task selected. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
@@ -66,13 +67,29 @@ the existing expansion states determine which descendants are visible. Press F
 again on a child branch to focus further. Escape moves to the parent scope,
 selecting the task whose branch you exited; focusing a deeply nested task builds
 the full ancestor path, so Escape still returns one hierarchy level at a time.
-At Root, Escape does nothing; F on a leaf does nothing. Enter remains available
-for future action confirmation and currently has no task action.
+At Root, Escape does nothing; F on a leaf does nothing. Enter activates the
+selected action-bar placeholder while browsing.
 
 Arrow keys, sibling shortcuts, and scrolling operate only within the current
 scope. Expansion changes persist across scope changes for the current session,
 including when focusing a collapsed branch. Focus, selection, and expansion never
 modify the task file.
+
+## Action bar
+
+The bottom bar starts with Add selected: **[+ Add task]** [✎]. Left / Right
+switches to Edit: [+] **[✎ Edit task]**, wrapping at either end. The entire
+selected item is bold; unselected items show only their bracketed symbol.
+Task selection remains highlighted, and Up / Down, sibling navigation, focus,
+and returning from search preserve the selected action.
+
+Enter shows a temporary, non-blocking notification: `Add task — coming soon`
+or `Edit task — coming soon`. These actions do not create or edit anything.
+In an empty tree, Add remains selected and Edit is dimmed and struck through;
+navigation skips unavailable actions. The bar wraps onto extra rows if needed
+when the terminal narrows. During search or text entry the bar is hidden and its
+bindings yield to the input. Enter in search still jumps to a result, and Escape
+still cancels. Actions never modify the task file.
 
 ## Search
 
@@ -193,6 +210,9 @@ result scrolling and truncation, and jumps to branch and leaf results.
 Path tests cover trailing slashes, consecutive nested segments, root anchoring,
 case-insensitive complete names, overlapping duplicate branches, unmatched paths,
 title-only ranking, and title-only highlighting.
+Action-bar tests cover wraparound, task and focus navigation, unavailable Edit in
+empty trees, temporary placeholder messages, search and text-input isolation,
+selection restoration, and narrow-terminal wrapping.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
 `Tree` bindings, `render_label`, cursor clamping, and `scroll_to_line`. The small

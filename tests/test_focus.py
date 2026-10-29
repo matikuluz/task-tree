@@ -116,7 +116,7 @@ async def test_focus_preserves_expansion_inside_and_outside_scope():
 async def test_focus_scrolling_return_and_resize():
     branches = [Task(str(i), f"Branch {i}", [Task(f"{i}-{j}", f"Child {j}") for j in range(25)]) for i in range(2)]
     app = TaskTreeApp("Repo", branches)
-    async with app.run_test(size=(60, 12)) as pilot:
+    async with app.run_test(size=(60, 13)) as pilot:
         tree = app.query_one(TaskTree)
         await pilot.press("shift+down", "f")
         assert selected_id(tree) == "1-0"

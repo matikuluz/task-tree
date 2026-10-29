@@ -56,7 +56,7 @@ async def test_navigation_and_collapse():
 
 async def test_viewport_boundary_and_resize():
     app = TaskTreeApp("Repository", [Task(str(i), f"Task {i}") for i in range(40)])
-    async with app.run_test(size=(60, 12)) as pilot:
+    async with app.run_test(size=(60, 13)) as pilot:
         tree = app.query_one(TaskTree)
         assert tree.scrollable_content_region.height == 10
         assert tree.scroll_y == 0
@@ -77,7 +77,7 @@ async def test_viewport_boundary_and_resize():
         await pilot.press(*(["down"] * 39))
         assert tree.cursor_line == 39
         assert tree.scroll_y == 30  # no blank padding at bottom
-        await pilot.resize_terminal(40, 8)
+        await pilot.resize_terminal(40, 9)
         await pilot.pause()
         assert tree.scroll_y <= tree.cursor_line < tree.scroll_y + tree.scrollable_content_region.height
         await pilot.press("up")
@@ -90,7 +90,7 @@ async def test_viewport_boundary_and_resize():
 async def test_nested_scroll_and_collapse():
     tasks = [Task("branch", "Branch", [Task(str(i), f"Child {i}") for i in range(25)]), Task("last", "Last")]
     app = TaskTreeApp("Repository", tasks)
-    async with app.run_test(size=(50, 12)) as pilot:
+    async with app.run_test(size=(50, 13)) as pilot:
         tree = app.query_one(TaskTree)
         await pilot.press(*(["down"] * 10))
         assert tree.cursor_node.data.id == "9"
@@ -164,7 +164,7 @@ async def test_sibling_navigation_at_every_level(start, moves):
             await pilot.press(f"shift+{direction}")
             assert tree.cursor_node.data.id == expected
             assert [node.is_expanded for node in nodes] == expansion
-        assert "Shift+↑/↓ Sibling" in str(app.query_one("#help").content)
+        assert "⇧↑↓ Sibling" in str(app.query_one("#help").content)
 
 
 async def test_siblings_preserve_collapsed_branches_and_ordinary_navigation():
@@ -193,7 +193,7 @@ async def test_sibling_jumps_scroll_only_to_keep_selection_visible():
         Task("last", "Last"),
     ]
     app = TaskTreeApp("Repository", tasks)
-    async with app.run_test(size=(60, 12)) as pilot:
+    async with app.run_test(size=(60, 13)) as pilot:
         tree = app.query_one(TaskTree)
         assert tree.scrollable_content_region.height == 10
         await pilot.press("shift+down")
@@ -231,6 +231,7 @@ async def test_open_close_does_not_write(tmp_path):
         app.screen.query_one(Input).value = "Implementation/Storage/"
         await pilot.pause()
         await pilot.press("enter")
+        await pilot.press("right", "enter", "left", "enter")
         await pilot.press("f", "f", "escape", "space", "escape", "space", "down", "space", "Q")
     assert store.path.read_bytes() == before
     assert store.path.stat().st_mtime_ns == stat.st_mtime_ns
