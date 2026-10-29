@@ -10,7 +10,7 @@ from .action_bar import ActionBar
 from .editor import TitleEditor
 from .models import Task
 from .placement import PlacementModel
-from .placement_ui import PlacementScreen
+from .placement_ui import PlacementScreen, CreatedTask
 from .search import SearchResult, TaskSearch
 from .search_ui import SearchScreen
 from .tree import TaskTree
@@ -105,10 +105,23 @@ class TaskTreeApp(App[None]):
                               tree.scrollable_content_region.y + tree.cursor_line - int(tree.scroll_y))
                 self._placement_expansions = {}
                 self.push_screen(PlacementScreen(self.repository_name, model, anchor=anchor,
-                                                save_expansion=self.persist_expansion), self._placement_closed)
+                                                save_expansion=self.persist_expansion, store=self.store), self._placement_closed)
                 self._update_action_bar()
 
-    def _placement_closed(self, result: None) -> None:
+    async def _placement_closed(self, result: CreatedTask | None) -> None:
+        if result is not None:
+            siblings = result.destination.ancestors[-1].children if result.destination.ancestors else self.tasks
+            siblings.insert(result.destination.index, result.task)
+            tree = next(iter(self.query(TaskTree)), None)
+            if tree is None:
+                tree = TaskTree(self.tasks, self.persist_expansion)
+                await self.mount(tree, before="#empty")
+                await self.query_one("#empty").remove()
+            tree.show_created(result.task.id, result.path, result.expanded,
+                              result.viewport_y - int(bool(result.path)))
+            self.search = TaskSearch(self.tasks)
+            self._action_bar.has_task = True
+            self._action_bar.refresh()
         if self._placement_expansions:
             self.query_one(TaskTree).apply_expansion_changes(self._placement_expansions)
         self.call_after_refresh(self._update_action_bar)

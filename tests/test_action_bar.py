@@ -8,6 +8,7 @@ from tasktree.models import Task
 from tasktree.placement_ui import PlacementScreen
 from tasktree.search_ui import SearchScreen
 from tasktree.tree import TaskTree
+from tasktree.editor import TitleEditor
 
 
 def tasks():
@@ -62,24 +63,19 @@ async def test_empty_tree_skips_unavailable_edit_and_activates_add():
         await pilot.press("right", "right", "left", "left", "enter", "enter")
         assert bar.selected == 0
         assert isinstance(app.screen, PlacementScreen)
-        assert [notification.message for notification in app._notifications] == ["Task creation — coming soon"]
+        assert app.screen.query_one(TitleEditor).value == ""
 
 
-async def test_placeholder_activation_is_temporary_and_nonblocking():
+async def test_add_activation_opens_empty_draft_and_cancels():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
         await pilot.press("enter", "enter", "down")
         assert tree.cursor_node.data.id == "a"
         assert isinstance(app.screen, PlacementScreen)
-        assert app.screen.model.current.index == 2
-        notifications = list(app._notifications)
-        assert [notification.message for notification in notifications] == [
-            "Task creation — coming soon",
-        ]
-        assert all(notification.timeout == 2 for notification in notifications)
-        await pilot.pause(2.1)
-        assert len(app._notifications) == 0
+        assert app.screen.query_one(TitleEditor).value == ""
+        await pilot.press("escape")
+        assert app.query_one(ActionBar).visible
 
 
 async def test_search_hides_bar_disables_actions_and_restores_selection():

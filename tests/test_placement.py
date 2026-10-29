@@ -128,10 +128,9 @@ async def test_placeholder_activation_and_conflicting_shortcuts_are_isolated():
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
         selected = tree.cursor_node
-        await pilot.press("enter", "enter")
+        await pilot.press("enter")
         screen = app.screen
         assert isinstance(screen, PlacementScreen)
-        assert [notification.message for notification in app._notifications] == ["Task creation — coming soon"]
         current = screen.model.current
         await pilot.press("f", "F", "r", "R", "slash", "left", "right", "shift+up", "shift+down", "q")
         assert app.screen is screen

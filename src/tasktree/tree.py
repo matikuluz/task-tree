@@ -211,6 +211,17 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         self._remember_expansion(self.root)
         return dict(self._expanded)
 
+    def show_created(self, task_id: str, path: tuple[Task, ...], expanded: dict[str, bool], viewport_y: int) -> None:
+        self._remember_expansion(self.root)
+        self._scope_path = list(path)
+        self._expanded.update(expanded)
+        self._show_scope(task_id, remember_expansion=False)
+        self.focus(scroll_visible=False)
+        def restore_position() -> None:
+            self.scroll_to(y=self.cursor_line + self.scrollable_content_region.y - viewport_y,
+                           animate=False, immediate=True, force=True)
+        self.call_after_refresh(restore_position)
+
     def jump_to(self, task: Task, ancestors: tuple[Task, ...]) -> None:
         """Reveal a search destination using its actual ancestor chain."""
         self._remember_expansion(self.root)

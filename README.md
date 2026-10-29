@@ -2,7 +2,7 @@
 
 A Python terminal task tree for Git repositories, built with Textual. Focus and
 selection live only in memory. Branch expansion is saved in JSON. The bottom bar offers inline
-title editing and a navigation-only Add placement mode.
+title editing and a Add placement and creation mode.
 
 ## Install and run
 
@@ -134,11 +134,11 @@ leaves the original file intact. JSON whitespace may be reformatted on save.
 
 After save or cancellation, the same task and Edit action remain selected and
 the action bar returns. Search results and parent paths use saved titles.
-Add placement is navigation-only; task creation is not implemented.
+Add placement creates tasks after an explicitly validated title save.
 
 ## Add placement mode
 
-Select Add and press Enter to choose where a future task would go. The action bar
+Select Add and press Enter to choose where a new task will go. The action bar
 is hidden, and `+` replaces the normal selection marker. Initially, a temporary
 `Add task here` row appears immediately after the selected task at the same
 hierarchy level. If that task is expanded, the sibling gap comes after its entire
@@ -162,7 +162,7 @@ including the guide for a temporary row's insertion parent.
 | Enter on Enter folder | Focus that branch and select the gap before its first child |
 | Space on Enter folder | Expand / collapse children without changing scope |
 | Enter on Go back | Return one parent scope, selecting the folder just exited |
-| Enter on Add task here | Show `Task creation — coming soon` and remain in placement mode |
+| Enter on Add task here | Replace the placeholder with an empty inline title input |
 | Escape | Cancel Add entirely and restore browsing |
 
 Focused scopes have a selectable `Go back` row at the top; Root does not.
@@ -177,9 +177,22 @@ Escape restores the original browsing scope, selection, scroll position, and Add
 action, while keeping successfully saved expansion changes. Temporary placement
 scopes are discarded. If a saved collapse hides the old selection, its collapsed
 ancestor is selected instead. Placement entries are separate from real tasks, have no persisted
-task IDs, and are never indexed by search. This mode never opens a title input,
-creates a task, or saves temporary rows. Only explicit branch toggles write
-expansion preferences.
+task IDs, and are never indexed by search. Temporary rows are never saved. Enter on an insertion gap opens an empty inline
+input at that exact position, preserving indentation, guides, and viewport. The
+parent ID and sibling index are captured before typing and never recalculated
+from the input row. Navigation and command shortcuts are suspended; normal text
+editing works, including q, f, r, /, Space, Backspace, Delete, Home, End, and
+Left / Right.
+
+Enter validates the title using the same rules as title editing and atomically
+saves a task with a unique UUID, no children, and expanded=true. It then exits
+Add, selects the new task in the placement scope, and restores Add on the action
+bar. The viewport stays anchored where content bounds permit, accounting for
+the placement-only Go back row disappearing. Search immediately includes the new
+task. Blank titles show an inline error. Failed saves retain the draft and its
+destination for retry or Escape; no partial task or duplicate is left behind.
+Escape from title entry cancels Add entirely, discarding the draft while retaining
+expansion preferences already saved during placement.
 
 ## Search
 
@@ -331,3 +344,7 @@ after Q. Headless checks do not establish real-terminal rendering or restoration
 Expansion-persistence tests cover old-file defaults, reopening nested branches,
 focus transitions without writes, Add cancellation retaining saved preferences,
 title-save preservation, boolean validation, and atomic-save failures.
+
+Creation tests cover root and nested insertion, sibling ordering, empty scopes,
+validation, shortcut isolation, cancellation, failed-save retry without duplicates,
+saved expansion preservation, viewport continuity, and reopening.

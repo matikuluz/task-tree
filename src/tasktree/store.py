@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from uuid import uuid4
 from typing import Any
 
 from .models import Task
@@ -104,6 +105,36 @@ class TaskStore:
         if task is None:
             raise TaskStoreError(f"Task {task_id!r} no longer exists in {self.path}.")
         task[field] = value
+        self._write_data(data, field)
+
+    def create_task(self, parent_id: str | None, index: int, title: str) -> Task:
+        """Insert a new stable ID at the captured sibling position, atomically."""
+        validate_title(title)
+        data = self._read_data()
+        self._validate(data)
+        ids: set[str] = set()
+        parent = None
+        def visit(values):
+            nonlocal parent
+            for value in values:
+                ids.add(value["id"])
+                if value["id"] == parent_id:
+                    parent = value
+                visit(value["children"])
+        visit(data["tasks"])
+        if parent_id is not None and parent is None:
+            raise TaskStoreError("The insertion parent no longer exists.")
+        siblings = data["tasks"] if parent_id is None else parent["children"]
+        if not 0 <= index <= len(siblings):
+            raise TaskStoreError("The insertion position no longer exists.")
+        task_id = str(uuid4())
+        while task_id in ids:
+            task_id = str(uuid4())
+        siblings.insert(index, {"id": task_id, "title": title, "children": [], "expanded": True})
+        self._write_data(data, "new task")
+        return Task(task_id, title)
+
+    def _write_data(self, data: Any, field: str) -> None:
         temporary: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(

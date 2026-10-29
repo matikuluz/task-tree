@@ -14,6 +14,19 @@ from textual.widgets.tree import TreeNode
 
 from .placement import PlacementModel, PlacementRow
 from .scrolling import center_task_row
+from .editor import TitleEditor
+from .store import TaskStore, TaskStoreError, validate_title
+from dataclasses import dataclass
+from .placement import PlacementEntry
+
+
+@dataclass(frozen=True)
+class CreatedTask:
+    task: Task
+    destination: PlacementEntry
+    path: tuple[Task, ...]
+    expanded: dict[str, bool]
+    viewport_y: int
 
 
 class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
@@ -40,13 +53,15 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
 
     def _toggle_node(self, node: TreeNode[PlacementRow]) -> None:
         # Disclosure clicks follow the same model/save path as placement's Space key.
+        if self.screen.editor is not None:
+            return
         row = node.data
         if row is not None and row.entry is not None and row.entry.kind == "folder":
             self.screen.model.selected = self.screen.model.entries.index(row.entry)
             self.screen.action_toggle()
 
 
-class PlacementScreen(ModalScreen[None]):
+class PlacementScreen(ModalScreen[CreatedTask | None]):
     """Display contextual tasks with one movable insertion row and folder options."""
 
     BINDINGS = [
@@ -67,16 +82,26 @@ class PlacementScreen(ModalScreen[None]):
     #placement-list:focus > .tree--cursor { background: transparent; text-style: none; }
     #placement-list > .tree--highlight-line { background: transparent; }
     #placement-help { height: 1; color: $text-muted; }
+    #creation-error { background: $surface; }
     """
 
     def __init__(self, repository_name: str, model: PlacementModel, *, anchor: tuple[str, int] | None = None,
-                 save_expansion: Callable[[Task, bool], bool] | None = None) -> None:
+                 save_expansion: Callable[[Task, bool], bool] | None = None,
+                 store: TaskStore | None = None) -> None:
         super().__init__()
         self.repository_name = repository_name
         self.model = model
         self._anchor = anchor
         self._centering_started = False
         self._save_expansion = save_expansion
+        self.store = store
+        self.editor: TitleEditor | None = None
+        self.destination: PlacementEntry | None = None
+        self._draft_error: Static | None = None
+        self._saving = False
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        return self.editor is None or action == "cancel"
 
     def compose(self) -> ComposeResult:
         yield Static("", id="placement-path")
@@ -152,11 +177,64 @@ class PlacementScreen(ModalScreen[None]):
         self.model.toggle()
         self._render_entries()
 
-    def action_activate(self) -> None:
+    async def action_activate(self) -> None:
         self._centering_started = True
-        if not self.model.enter():
-            self.notify("Task creation — coming soon", timeout=2, markup=False)
-        self._render_entries()
+        if self.model.current.kind != "insert":
+            self.model.enter()
+            self._render_entries()
+            return
+        self.destination = self.model.current
+        self.editor = TitleEditor("")
+        self._draft_error = Static("", id="creation-error", markup=False)
+        self._draft_error.styles.position = "absolute"
+        self._draft_error.styles.layer = "editor"
+        self._draft_error.styles.color = "red"
+        self._draft_error.styles.height = 1
+        self._draft_error.display = False
+        await self.mount(self.editor, self._draft_error)
+        tree = self.query_one(PlacementTree)
+        tree.cursor_node.set_label(Text(""))
+        self._position_editor()
+        self.editor.focus(scroll_visible=False)
+        self.query_one("#placement-help", Static).update("Enter Save task  Esc Cancel Add")
+
+    def _position_editor(self) -> None:
+        if self.editor is not None:
+            tree = self.query_one(PlacementTree)
+            row = tree.cursor_node.data
+            x = tree.scrollable_content_region.x + row.depth * tree.guide_depth + 2
+            y = tree.scrollable_content_region.y + tree.cursor_line - int(tree.scroll_y)
+            self.editor.styles.offset = (x, y)
+            self.editor.styles.width = max(1, tree.scrollable_content_region.right - x)
+            if self._draft_error is not None:
+                error_y = y + 1 if y + 1 < tree.scrollable_content_region.bottom else max(tree.scrollable_content_region.y, y - 1)
+                self._draft_error.styles.offset = (x, error_y)
+                self._draft_error.styles.width = self.editor.styles.width
+
+    async def on_input_submitted(self, message: TitleEditor.Submitted) -> None:
+        message.stop()
+        if self._saving:
+            return
+        self._saving = True
+        try:
+            validate_title(message.value)
+            if self.store is None:
+                raise TaskStoreError("No task file is connected to this viewer.")
+            entry = self.destination
+            parent_id = entry.ancestors[-1].id if entry.ancestors else None
+            task = self.store.create_task(parent_id, entry.index, message.value)
+        except TaskStoreError as error:
+            self._saving = False
+            self._draft_error.update(str(error))
+            self._draft_error.display = True
+            return
+        tree = self.query_one(PlacementTree)
+        self.dismiss(CreatedTask(task, entry, self.model.path, dict(self.model.expanded),
+                                tree.scrollable_content_region.y + tree.cursor_line - int(tree.scroll_y)))
+
+    def on_title_editor_cancelled(self, message: TitleEditor.Cancelled) -> None:
+        message.stop()
+        self.dismiss(None)
 
     def action_cancel(self) -> None:
         self.dismiss()
@@ -168,6 +246,9 @@ class PlacementScreen(ModalScreen[None]):
         self.call_after_refresh(self._keep_selection_visible)
 
     def _keep_selection_visible(self) -> None:
+        if self.editor is not None:
+            self._position_editor()
+            return
         tree = self.query_one(PlacementTree)
         if self._centering_started:
             tree.scroll_to_line(tree.cursor_line, animate=False)
