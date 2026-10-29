@@ -2,7 +2,7 @@
 
 A Python terminal task tree for Git repositories, built with Textual. Selection,
 focus, and branch expansion live only in memory. The bottom bar offers inline
-title editing and an Add placeholder.
+title editing and a navigation-only Add placement mode.
 
 ## Install and run
 
@@ -42,6 +42,7 @@ an edited title updates that title atomically.
 | Key | Action |
 | --- | --- |
 | Up / Down | Move one visible task, without wrapping |
+| Home / End | Select the first / last visible task in the current scope |
 | Shift + Up / Down | Move to the previous / next task with the same parent, skipping descendants |
 | Space | Expand or collapse the selected branch; no effect on leaves |
 | F | Focus the selected branch, showing its children and descendants |
@@ -50,7 +51,7 @@ an edited title updates that title atomically.
 | / | Open title search across the entire task tree |
 | Q | Exit |
 | Left / Right | Select a bottom-bar action, wrapping around available actions |
-| Enter | Activate Add's placeholder or edit the selected task's title |
+| Enter | Enter Add placement mode or edit the selected task's title |
 
 All branches start expanded, with the first task selected. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
@@ -61,6 +62,14 @@ Sibling navigation works at every nesting level, including top-level tasks. At
 the first or last sibling, movement in that direction does nothing: it never
 wraps or jumps to another parent. Expansion states are preserved, and sibling
 jumps use the same scrolling behaviour as ordinary navigation.
+
+Home / End jump to the first / last visible task at Root or within the
+current focused branch, skipping descendants of collapsed tasks. These jumps
+preserve expansion and the selected bottom-bar action, scrolling only as far as
+needed without centring. At the relevant boundary or in an empty scope they do
+nothing. During search or text editing, Home / End retain their normal input
+cursor behaviour without navigating tasks. Ctrl + Up / Down are not bound to
+tree navigation; there are no T / B alternatives.
 
 Focus mode shows the current path in the header, for example
 `Root / Planning / Define scope`. The focused task becomes the scope root in
@@ -91,7 +100,7 @@ selected item is bold; unselected items show only their bracketed symbol.
 Task selection remains highlighted, and Up / Down, sibling navigation, focus,
 and returning from search preserve the selected action.
 
-Enter on Add shows a temporary, non-blocking notification: `Add task — coming soon`.
+Enter on Add starts placement mode, described below.
 Enter on Edit opens the selected task's inline title editor.
 In an empty tree, Add remains selected and Edit is dimmed and struck through;
 navigation skips unavailable actions. The bar wraps onto extra rows if needed
@@ -121,7 +130,48 @@ leaves the original file intact. JSON whitespace may be reformatted on save.
 
 After save or cancellation, the same task and Edit action remain selected and
 the action bar returns. Search results and parent paths use saved titles.
-Add remains a placeholder; task creation is not implemented.
+Add placement is navigation-only; task creation is not implemented.
+
+## Add placement mode
+
+Select Add and press Enter to choose where a future task would go. The action bar
+is hidden, and `+` replaces the normal selection marker. Initially, a temporary
+`Add task here` row appears immediately after the selected task at the same
+hierarchy level. If that task is expanded, the sibling gap comes after its entire
+visible subtree. An empty scope offers one insertion position.
+
+Up / Down visit insertion positions and folder options in visible tree order,
+without wrapping. There are gaps before the first task, between siblings, and
+after the last task at each expanded level. Only the selected insertion gap is
+drawn as a temporary row; its indentation shows the proposed parent. Task rows
+remain as context, with `[Enter folder]` shown only alongside the currently
+selected folder's title. This option is separate from insertion gaps before and
+after that branch. Moving away removes the hint immediately. Selection uses the
+`+` cursor and bold label, without a full-row background highlight. Placement
+uses the same connector lines and blue active-branch guides as normal browsing,
+including the guide for a temporary row's insertion parent.
+
+| Placement key | Action |
+| --- | --- |
+| Up / Down | Previous / next insertion gap or folder option |
+| Home / End | First / last available placement entry in this scope |
+| Enter on Enter folder | Focus that branch and select the gap before its first child |
+| Space on Enter folder | Expand / collapse children without changing scope |
+| Enter on Go back | Return one parent scope, selecting the folder just exited |
+| Enter on Add task here | Show `Task creation — coming soon` and remain in placement mode |
+| Escape | Cancel Add entirely and restore browsing |
+
+Focused scopes have a selectable `Go back` row at the top; Root does not.
+Collapsed descendants are skipped. Home includes Go back when it is present.
+Scrolling reveals the selected row only as needed, without centring. Placement
+has its own keyboard help: search, editing, action selection, F, R, sibling
+shortcuts, and quit are inactive, so F cannot bypass folder-entry controls.
+
+Escape restores the original browsing scope, selected task, expansion states,
+scroll position, and Add action. Expansion and scope changes made during placement
+are discarded. Placement entries are separate from real tasks, have no persisted
+task IDs, and are never indexed by search. This mode never opens a title input,
+creates a task, or writes the task file.
 
 ## Search
 
@@ -251,6 +301,12 @@ navigation, and typing r in search and text inputs.
 Editing tests cover saving and reopening, cancellation, invalid titles, native
 editing keys, shortcut isolation, scrolled-row geometry, preservation of other
 task data, atomic replacement, save failure recovery, and retry or cancellation.
+Scope-boundary navigation tests cover root and nested scopes, collapsed branches,
+minimal scrolling, boundary and empty-tree no-ops, action preservation, and
+isolation from search and text inputs.
+Placement tests cover insertion order and indentation, expanded and collapsed
+branches, folder entry, Go back, empty scopes, keyboard isolation, scrolling and
+resize, cancellation restoring browsing state, and unchanged task-file contents.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
 `Tree` bindings, `render_label`, cursor clamping, and `scroll_to_line`. The small

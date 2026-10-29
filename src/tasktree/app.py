@@ -9,6 +9,8 @@ from textual.widgets import Static
 from .action_bar import ActionBar
 from .editor import TitleEditor
 from .models import Task
+from .placement import PlacementModel
+from .placement_ui import PlacementScreen
 from .search import SearchResult, TaskSearch
 from .search_ui import SearchScreen
 from .tree import TaskTree
@@ -52,7 +54,7 @@ class TaskTreeApp(App[None]):
             yield TaskTree(self.tasks)
         else:
             yield Static("No tasks yet.", id="empty")
-        yield Static("↑↓ Task ⇧↑↓ Sibling ←→ Action Enter Run Space Fold F Focus Esc Back R Root / Q", id="help")
+        yield Static("↑↓ Task ⇧↑↓ Sibling Home/End ←→ Action Enter ␠ Fold F Focus Esc R Root / Q", id="help")
         yield self._action_bar
 
     def _is_browsing(self) -> bool:
@@ -64,7 +66,7 @@ class TaskTreeApp(App[None]):
         if action in {"search", "previous_action", "next_action", "activate_action"}:
             # Priority browsing bindings must yield to text entry and search results.
             return self._is_browsing()
-        if action == "quit" and (isinstance(self.screen, SearchScreen) or self.query(TitleEditor)):
+        if action == "quit" and (isinstance(self.screen, (SearchScreen, PlacementScreen)) or self.query(TitleEditor)):
             return False
         return True
 
@@ -90,7 +92,21 @@ class TaskTreeApp(App[None]):
                 await self.query_one(TaskTree).begin_edit()
                 self._update_action_bar()
             else:
-                self.notify(f"{action.label} — coming soon", timeout=2, markup=False)
+                tree = next(iter(self.query(TaskTree)), None)
+                model = PlacementModel(
+                    self.tasks, tree.scope_path if tree else (),
+                    tree.expansion_snapshot() if tree else {},
+                    tree.cursor_node.data.id if tree and tree.cursor_node else None,
+                )
+                anchor = None
+                if tree and tree.cursor_node:
+                    anchor = (tree.cursor_node.data.id,
+                              tree.scrollable_content_region.y + tree.cursor_line - int(tree.scroll_y))
+                self.push_screen(PlacementScreen(self.repository_name, model, anchor=anchor), self._placement_closed)
+                self._update_action_bar()
+
+    def _placement_closed(self, result: None) -> None:
+        self.call_after_refresh(self._update_action_bar)
 
     async def on_input_submitted(self, message: TitleEditor.Submitted) -> None:
         if not isinstance(message.input, TitleEditor):

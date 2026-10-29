@@ -40,7 +40,7 @@ async def test_navigation_and_collapse():
         assert tree.cursor_node.data.id == "d"
         await pilot.press("up")
         assert tree.cursor_node.data.id == "b"
-        await pilot.press("left", "right", "enter", "shift+space", "shift+left")
+        await pilot.press("left", "right", "enter", "escape", "shift+space", "shift+left")
         assert tree.cursor_node.data.id == "b"
         assert not tree.cursor_node.is_expanded
         await pilot.press("space", "down")
@@ -231,8 +231,9 @@ async def test_open_close_does_not_write(tmp_path):
         app.screen.query_one(Input).value = "Implementation/Storage/"
         await pilot.pause()
         await pilot.press("enter")
-        await pilot.press("right", "enter", "escape", "left", "enter")
+        await pilot.press("right", "enter", "escape", "left", "enter", "escape")
         await pilot.press("r")
+        await pilot.press("end", "home")
         await pilot.press("f", "f", "escape", "space", "escape", "space", "down", "space", "Q")
     assert store.path.read_bytes() == before
     assert store.path.stat().st_mtime_ns == stat.st_mtime_ns

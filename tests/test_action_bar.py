@@ -5,6 +5,7 @@ from textual.widgets import Input, TextArea
 from tasktree.action_bar import ActionBar
 from tasktree.app import TaskTreeApp
 from tasktree.models import Task
+from tasktree.placement_ui import PlacementScreen
 from tasktree.search_ui import SearchScreen
 from tasktree.tree import TaskTree
 
@@ -58,20 +59,23 @@ async def test_empty_tree_skips_unavailable_edit_and_activates_add():
         assert bar.visible and bar.selected == 0
         style = bar.render().get_style_at_offset(Console(), len(bar.render()) - 1)
         assert style.dim and style.strike
-        await pilot.press("right", "right", "left", "left", "enter")
+        await pilot.press("right", "right", "left", "left", "enter", "enter")
         assert bar.selected == 0
-        assert [notification.message for notification in app._notifications] == ["Add task — coming soon"]
+        assert isinstance(app.screen, PlacementScreen)
+        assert [notification.message for notification in app._notifications] == ["Task creation — coming soon"]
 
 
 async def test_placeholder_activation_is_temporary_and_nonblocking():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("enter", "down")
-        assert tree.cursor_node.data.id == "b"
+        await pilot.press("enter", "enter", "down")
+        assert tree.cursor_node.data.id == "a"
+        assert isinstance(app.screen, PlacementScreen)
+        assert app.screen.model.current.index == 2
         notifications = list(app._notifications)
         assert [notification.message for notification in notifications] == [
-            "Add task — coming soon",
+            "Task creation — coming soon",
         ]
         assert all(notification.timeout == 2 for notification in notifications)
         await pilot.pause(2.1)

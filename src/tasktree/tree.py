@@ -18,6 +18,8 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     BINDINGS = [
         Binding("up", "cursor_up", "Up", show=False),
         Binding("down", "cursor_down", "Down", show=False),
+        Binding("home", "scope_boundary(False)", "First visible task", show=False),
+        Binding("end", "scope_boundary(True)", "Last visible task", show=False),
         Binding("shift+up", "cursor_previous_sibling", "Previous sibling", show=False),
         Binding("shift+down", "cursor_next_sibling", "Next sibling", show=False),
         Binding("space", "toggle_node", "Expand/collapse", show=False),
@@ -148,11 +150,28 @@ class TaskTree(Tree[Task], inherit_bindings=False):
             self._scope_path.clear()
             self._show_scope(ancestor.id)
 
+    def action_scope_boundary(self, end: bool) -> None:
+        """Select a visible scope boundary without changing expansion or wrapping."""
+        last = self.last_line
+        target = last if end else 0
+        if last >= 0 and self.cursor_line != target:
+            self.cursor_line = target
+            self.scroll_to_line(target, animate=False)
+
     def _remember_expansion(self, parent: TreeNode[Task]) -> None:
         for node in parent.children:
             assert node.data is not None
             self._expanded[node.data.id] = node.is_expanded
             self._remember_expansion(node)
+
+    @property
+    def scope_path(self) -> tuple[Task, ...]:
+        return tuple(self._scope_path)
+
+    def expansion_snapshot(self) -> dict[str, bool]:
+        """Copy current and hidden branch states for a temporary navigation mode."""
+        self._remember_expansion(self.root)
+        return dict(self._expanded)
 
     def jump_to(self, task: Task, ancestors: tuple[Task, ...]) -> None:
         """Reveal a search destination using its actual ancestor chain."""
