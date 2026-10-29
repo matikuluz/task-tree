@@ -69,6 +69,8 @@ async def test_cancel_preserves_scope_selection_scroll_and_file(tmp_path):
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
         await pilot.press("f", "space", "right")
+        before = store.path.read_bytes()
+        timestamp = store.path.stat().st_mtime_ns
         node = tree.cursor_node
         scroll = tree.scroll_y
         await pilot.press("enter", "x", "escape")

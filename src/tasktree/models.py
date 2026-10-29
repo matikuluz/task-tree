@@ -10,3 +10,4 @@ class Task:
     id: str
     title: str
     children: list["Task"] = field(default_factory=list)
+    expanded: bool = True

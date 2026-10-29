@@ -47,11 +47,12 @@ class TaskTreeApp(App[None]):
         self.search = TaskSearch(tasks)
         self.store = store
         self._action_bar = ActionBar(has_task=bool(tasks))
+        self._placement_expansions: dict[str, bool] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(Text(f"{self.repository_name} | Root"), id="repository")
         if self.tasks:
-            yield TaskTree(self.tasks)
+            yield TaskTree(self.tasks, self.persist_expansion)
         else:
             yield Static("No tasks yet.", id="empty")
         yield Static("↑↓ Task ⇧↑↓ Sibling Home/End ←→ Action Enter ␠ Fold F Focus Esc R Root / Q", id="help")
@@ -102,11 +103,28 @@ class TaskTreeApp(App[None]):
                 if tree and tree.cursor_node:
                     anchor = (tree.cursor_node.data.id,
                               tree.scrollable_content_region.y + tree.cursor_line - int(tree.scroll_y))
-                self.push_screen(PlacementScreen(self.repository_name, model, anchor=anchor), self._placement_closed)
+                self._placement_expansions = {}
+                self.push_screen(PlacementScreen(self.repository_name, model, anchor=anchor,
+                                                save_expansion=self.persist_expansion), self._placement_closed)
                 self._update_action_bar()
 
     def _placement_closed(self, result: None) -> None:
+        if self._placement_expansions:
+            self.query_one(TaskTree).apply_expansion_changes(self._placement_expansions)
         self.call_after_refresh(self._update_action_bar)
+
+    def persist_expansion(self, task: Task, expanded: bool) -> bool:
+        if self.store is None:
+            return True
+        try:
+            self.store.update_expanded(task.id, expanded)
+        except TaskStoreError as error:
+            self.notify(str(error), severity="error", markup=False)
+            return False
+        task.expanded = expanded
+        if isinstance(self.screen, PlacementScreen):
+            self._placement_expansions[task.id] = expanded
+        return True
 
     async def on_input_submitted(self, message: TitleEditor.Submitted) -> None:
         if not isinstance(message.input, TitleEditor):

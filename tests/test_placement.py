@@ -214,7 +214,7 @@ async def test_placement_scrolling_is_minimal_and_does_not_wrap():
         assert options.scroll_y == 0
 
 
-async def test_placement_never_modifies_task_file(tmp_path):
+async def test_placement_only_saves_expansion_preferences(tmp_path):
     data = {"schema_version": 1, "tasks": [
         {"id": "a", "title": "Branch", "children": [
             {"id": "b", "title": "Child", "children": []},
@@ -227,8 +227,8 @@ async def test_placement_never_modifies_task_file(tmp_path):
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         await pilot.press("enter", "home", "down", "space", "enter", "enter", "home", "enter", "escape")
-    assert store.path.read_bytes() == before
-    assert store.path.stat().st_mtime_ns == timestamp
+    data["tasks"][0]["expanded"] = False
+    assert json.loads(store.path.read_text()) == data
 
 
 def rendered_rows(tree):

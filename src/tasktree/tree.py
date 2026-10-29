@@ -1,6 +1,7 @@
 """Small adaptations to Textual's tree rendering and keyboard bindings."""
 
 from rich.style import Style
+from collections.abc import Callable
 from rich.text import Text
 from textual import events
 from textual.binding import Binding
@@ -35,9 +36,10 @@ class TaskTree(Tree[Task], inherit_bindings=False):
             super().__init__()
             self.titles = titles
 
-    def __init__(self, tasks: list[Task]) -> None:
+    def __init__(self, tasks: list[Task], save_expansion: Callable[[Task, bool], bool] | None = None) -> None:
         super().__init__("Tasks", id="tasks")
         self._tasks = tasks
+        self._save_expansion = save_expansion
         self._scope_path: list[Task] = []
         self._expanded: dict[str, bool] = {}
         self.editor: TitleEditor | None = None
@@ -53,7 +55,7 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     def _add_tasks(self, parent: TreeNode[Task], tasks: list[Task]) -> None:
         for task in tasks:
             node = parent.add(
-                Text(task.title), task, expand=self._expanded.get(task.id, True),
+                Text(task.title), task, expand=self._expanded.get(task.id, task.expanded),
                 allow_expand=bool(task.children),
             )
             self._add_tasks(node, task.children)
@@ -64,6 +66,37 @@ class TaskTree(Tree[Task], inherit_bindings=False):
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         return self.editor is None
+
+    def action_toggle_node(self) -> None:
+        node = self.cursor_node
+        if node is not None:
+            self._toggle_node(node)
+
+    def _toggle_node(self, node: TreeNode[Task]) -> None:
+        # The native tree uses this hook for both Space and disclosure clicks.
+        if node.data is not None and node.data.children:
+            expanded = not node.is_expanded
+            if self._save_expansion is None or self._save_expansion(node.data, expanded):
+                node.toggle()
+
+    def apply_expansion_changes(self, changes: dict[str, bool]) -> None:
+        """Apply saved Add-mode preferences without restoring its temporary scope."""
+        self._expanded.update(changes)
+        selected = self.cursor_node
+        def visit(parent: TreeNode[Task]) -> None:
+            for node in parent.children:
+                if node.data.id in changes:
+                    node.expand() if changes[node.data.id] else node.collapse()
+                visit(node)
+        visit(self.root)
+        self.get_node_at_line(0)
+        if selected is not None:
+            parent = selected.parent
+            while parent is not None and parent is not self.root:
+                if not parent.is_expanded:
+                    selected = parent
+                parent = parent.parent
+            self.cursor_line = selected.line
 
     async def begin_edit(self) -> None:
         """Overlay an input on the title without rebuilding or moving the tree."""

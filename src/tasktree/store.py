@@ -39,7 +39,7 @@ def repository_root(start: Path | None = None) -> Path:
 
 
 class TaskStore:
-    """Load task data and save explicit title changes without writing UI state."""
+    """Load task data and atomically save explicit per-task preferences and titles."""
 
     def __init__(self, root: Path) -> None:
         self.path = root / ".tasktree.json"
@@ -79,6 +79,15 @@ class TaskStore:
     def update_title(self, task_id: str, title: str) -> None:
         """Change only one title in the latest validated file, replacing it atomically."""
         validate_title(title)
+        self._update_task(task_id, "title", title)
+
+    def update_expanded(self, task_id: str, expanded: bool) -> None:
+        """Atomically update a real task's expansion preference by stable ID."""
+        if type(expanded) is not bool:
+            raise TaskStoreError("expanded must be a boolean")
+        self._update_task(task_id, "expanded", expanded)
+
+    def _update_task(self, task_id: str, field: str, value: Any) -> None:
         data = self._read_data()
         self._validate(data)
 
@@ -94,7 +103,7 @@ class TaskStore:
         task = find(data["tasks"])
         if task is None:
             raise TaskStoreError(f"Task {task_id!r} no longer exists in {self.path}.")
-        task["title"] = title
+        task[field] = value
         temporary: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -108,7 +117,7 @@ class TaskStore:
                 os.fsync(stream.fileno())
             os.replace(temporary, self.path)
         except (OSError, UnicodeError, ValueError, RecursionError) as error:
-            raise TaskStoreError(f"Could not save title: {error}") from error
+            raise TaskStoreError(f"Could not save {field}: {error}") from error
         finally:
             if temporary is not None:
                 try:
@@ -122,8 +131,10 @@ class TaskStore:
         tasks = []
         for index, value in enumerate(values):
             here = f"{location}[{index}]"
-            if not isinstance(value, dict) or set(value) != {"id", "title", "children"}:
+            if not isinstance(value, dict) or set(value) not in ({"id", "title", "children"}, {"id", "title", "children", "expanded"}):
                 raise ValueError(f"{here} must have exactly id, title, and children")
+            if type(value.get("expanded", True)) is not bool:
+                raise ValueError(f"{here}.expanded must be a boolean")
             for key in ("id", "title"):
                 text = value[key]
                 if not isinstance(text, str) or not text.strip() or any(
@@ -134,5 +145,5 @@ class TaskStore:
             if value["id"] in seen:
                 raise ValueError(f"{here}.id duplicates {value['id']!r}")
             seen.add(value["id"])
-            tasks.append(Task(value["id"], value["title"], self._tasks(value["children"], f"{here}.children", seen)))
+            tasks.append(Task(value["id"], value["title"], self._tasks(value["children"], f"{here}.children", seen), value.get("expanded", True)))
         return tasks

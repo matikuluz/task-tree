@@ -1,6 +1,8 @@
 """Modal placement navigator; cancellation leaves the browsing tree untouched."""
 
 from rich.text import Text
+from collections.abc import Callable
+from .models import Task
 from rich.style import Style
 from textual import events
 from textual.app import ComposeResult
@@ -32,6 +34,13 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
             text.stylize("bold")
         return text
 
+    def _toggle_node(self, node: TreeNode[PlacementRow]) -> None:
+        # Disclosure clicks follow the same model/save path as placement's Space key.
+        row = node.data
+        if row is not None and row.entry is not None and row.entry.kind == "folder":
+            self.screen.model.selected = self.screen.model.entries.index(row.entry)
+            self.screen.action_toggle()
+
 
 class PlacementScreen(ModalScreen[None]):
     """Display contextual tasks with one movable insertion row and folder options."""
@@ -56,11 +65,13 @@ class PlacementScreen(ModalScreen[None]):
     #placement-help { height: 1; color: $text-muted; }
     """
 
-    def __init__(self, repository_name: str, model: PlacementModel, *, anchor: tuple[str, int] | None = None) -> None:
+    def __init__(self, repository_name: str, model: PlacementModel, *, anchor: tuple[str, int] | None = None,
+                 save_expansion: Callable[[Task, bool], bool] | None = None) -> None:
         super().__init__()
         self.repository_name = repository_name
         self.model = model
         self._anchor = anchor
+        self._save_expansion = save_expansion
 
     def compose(self) -> ComposeResult:
         yield Static("", id="placement-path")
@@ -125,6 +136,11 @@ class PlacementScreen(ModalScreen[None]):
         self._render_entries()
 
     def action_toggle(self) -> None:
+        entry = self.model.current
+        if entry.kind == "folder" and self._save_expansion is not None:
+            expanded = not self.model.expanded.get(entry.task.id, entry.task.expanded)
+            if not self._save_expansion(entry.task, expanded):
+                return
         self.model.toggle()
         self._render_entries()
 

@@ -36,7 +36,8 @@
           "title": "Record decisions",
           "children": []
         }
-      ]
+      ],
+      "expanded": false
     },
     {
       "id": "t2",
@@ -73,7 +74,8 @@
           "title": "Packaging",
           "children": []
         }
-      ]
+      ],
+      "expanded": false
     },
     {
       "id": "t3",
@@ -110,7 +112,8 @@
           "title": "Release review",
           "children": []
         }
-      ]
+      ],
+      "expanded": false
     },
     {
       "id": "t4",
@@ -147,7 +150,8 @@
           "title": "Sample workflow",
           "children": []
         }
-      ]
+      ],
+      "expanded": false
     }
   ]
 }

@@ -1,7 +1,7 @@
 # Tasktree
 
-A Python terminal task tree for Git repositories, built with Textual. Selection,
-focus, and branch expansion live only in memory. The bottom bar offers inline
+A Python terminal task tree for Git repositories, built with Textual. Focus and
+selection live only in memory. Branch expansion is saved in JSON. The bottom bar offers inline
 title editing and a navigation-only Add placement mode.
 
 ## Install and run
@@ -53,7 +53,8 @@ an edited title updates that title atomically.
 | Left / Right | Select a bottom-bar action, wrapping around available actions |
 | Enter | Enter Add placement mode or edit the selected task's title |
 
-All branches start expanded, with the first task selected. The selected task is
+Saved branch expansion is restored, with the first visible task selected.
+Older tasks without an expanded field default to expanded. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
 are clipped at the right edge. Scrolling moves only far enough to keep selection
 visible, without animation or centring. Empty files show `No tasks yet.`
@@ -88,9 +89,10 @@ At Root (including an empty tree), R does nothing. In search and other text
 inputs, r types normally. Escape continues to return just one hierarchy level.
 
 Arrow keys, sibling shortcuts, and scrolling operate only within the current
-scope. Expansion changes persist across scope changes for the current session,
-including when focusing a collapsed branch. Focus, selection, and expansion never
-modify the task file.
+scope. Explicit branch expansion/collapse changes are saved atomically by stable
+ID in normal browsing, focused browsing, and Add mode. Focus and selection are
+never saved. Entering or leaving focus alone does not change saved preferences.
+A failed save is reported and leaves both the file and branch state unchanged.
 
 ## Action bar
 
@@ -106,7 +108,7 @@ In an empty tree, Add remains selected and Edit is dimmed and struck through;
 navigation skips unavailable actions. The bar wraps onto extra rows if needed
 when the terminal narrows. During search or text entry the bar is hidden and its
 bindings yield to the input. Enter in search still jumps to a result, and Escape
-still cancels. Only an explicitly saved title edit modifies the task file.
+still cancels. Explicit title saves and branch expansion changes modify the task file.
 
 ## Inline title editing
 
@@ -167,11 +169,13 @@ Scrolling reveals the selected row only as needed, without centring. Placement
 has its own keyboard help: search, editing, action selection, F, R, sibling
 shortcuts, and quit are inactive, so F cannot bypass folder-entry controls.
 
-Escape restores the original browsing scope, selected task, expansion states,
-scroll position, and Add action. Expansion and scope changes made during placement
-are discarded. Placement entries are separate from real tasks, have no persisted
+Escape restores the original browsing scope, selection, scroll position, and Add
+action, while keeping successfully saved expansion changes. Temporary placement
+scopes are discarded. If a saved collapse hides the old selection, its collapsed
+ancestor is selected instead. Placement entries are separate from real tasks, have no persisted
 task IDs, and are never indexed by search. This mode never opens a title input,
-creates a task, or writes the task file.
+creates a task, or saves temporary rows. Only explicit branch toggles write
+expansion preferences.
 
 ## Search
 
@@ -246,7 +250,10 @@ Search and result navigation never write to the task file.
 ```
 
 Version 1 requires exactly `schema_version` and `tasks` at the top level, and
-exactly `id`, `title`, and `children` on every task. `schema_version` is integer 1.
+`id`, `title`, and `children` on every task, with optional boolean `expanded`.
+The expanded preference belongs to that task's stable ID; missing values default
+to true for compatibility. Leaves may carry the field, although they cannot be
+toggled in the interface. `schema_version` is integer 1.
 Task and children arrays define display order. IDs are globally unique, nonempty
 strings: keep them stable when editing titles. Titles are nonempty single-line
 strings. Control characters and line separators are rejected. Textual markup in
@@ -316,3 +323,7 @@ geometry. API reference: https://textual.textualize.io/widgets/tree/
 Before relying on a terminal/platform, manually check glyph rendering and bold
 selection, held arrow keys, resize behaviour, and restoration of the terminal
 after Q. Headless checks do not establish real-terminal rendering or restoration.
+
+Expansion-persistence tests cover old-file defaults, reopening nested branches,
+focus transitions without writes, Add cancellation retaining saved preferences,
+title-save preservation, boolean validation, and atomic-save failures.
