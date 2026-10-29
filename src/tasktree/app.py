@@ -47,7 +47,7 @@ class TaskTreeApp(App[None]):
             yield TaskTree(self.tasks)
         else:
             yield Static("No tasks yet.", id="empty")
-        yield Static("↑↓ Task  ⇧↑↓ Sibling  ←→ Action  Enter Run  Space Fold  F Focus  Esc Back  /  Q", id="help")
+        yield Static("↑↓ Task ⇧↑↓ Sibling ←→ Action Enter Run Space Fold F Focus Esc Back R Root / Q", id="help")
         yield self._action_bar
 
     def _is_browsing(self) -> bool:

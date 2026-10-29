@@ -22,6 +22,7 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         Binding("space", "toggle_node", "Expand/collapse", show=False),
         Binding("f,F", "focus_branch", "Focus branch", show=False),
         Binding("escape", "leave_scope", "Back", show=False),
+        Binding("r,R", "return_to_root", "Return to root", show=False),
     ]
 
     class ScopeChanged(Message):
@@ -73,6 +74,13 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         if self._scope_path:
             exited = self._scope_path.pop()
             self._show_scope(exited.id)
+
+    def action_return_to_root(self) -> None:
+        """Exit all scopes and select the current task's top-level ancestor."""
+        if self._scope_path:
+            ancestor = self._scope_path[0]
+            self._scope_path.clear()
+            self._show_scope(ancestor.id)
 
     def _remember_expansion(self, parent: TreeNode[Task]) -> None:
         for node in parent.children:

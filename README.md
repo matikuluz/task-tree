@@ -45,6 +45,7 @@ file. `open` requires a valid file and never writes it.
 | Space | Expand or collapse the selected branch; no effect on leaves |
 | F | Focus the selected branch, showing its children and descendants |
 | Escape | Return one scope level and select the branch just exited |
+| R | Return directly to Root and select the current task's top-level ancestor |
 | / | Open title search across the entire task tree |
 | Q | Exit |
 | Left / Right | Select a bottom-bar action, wrapping around available actions |
@@ -69,6 +70,12 @@ selecting the task whose branch you exited; focusing a deeply nested task builds
 the full ancestor path, so Escape still returns one hierarchy level at a time.
 At Root, Escape does nothing; F on a leaf does nothing. Enter activates the
 selected action-bar placeholder while browsing.
+
+R exits all nested focus scopes at once, clears the focus path, and selects the
+top-level ancestor of the previously selected task. It scrolls only as needed to
+reveal that task, preserving expansion states and the selected bottom-bar action.
+At Root (including an empty tree), R does nothing. In search and other text
+inputs, r types normally. Escape continues to return just one hierarchy level.
 
 Arrow keys, sibling shortcuts, and scrolling operate only within the current
 scope. Expansion changes persist across scope changes for the current session,
@@ -213,6 +220,9 @@ title-only ranking, and title-only highlighting.
 Action-bar tests cover wraparound, task and focus navigation, unavailable Edit in
 empty trees, temporary placeholder messages, search and text-input isolation,
 selection restoration, and narrow-terminal wrapping.
+Return-to-root tests cover nested scopes, ancestor selection and minimal scrolling,
+expansion and action preservation, root and empty-tree no-ops, unchanged Escape
+navigation, and typing r in search and text inputs.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
 `Tree` bindings, `render_label`, cursor clamping, and `scroll_to_line`. The small
