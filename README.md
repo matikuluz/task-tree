@@ -41,6 +41,7 @@ file. `open` requires a valid file and never writes it.
 | Key | Action |
 | --- | --- |
 | Up / Down | Move one visible task, without wrapping |
+| Shift + Up / Down | Move to the previous / next task with the same parent, skipping descendants |
 | Space | Expand or collapse the selected branch; no effect on leaves |
 | Q | Exit |
 | Left / Right / Enter | No task action |
@@ -49,6 +50,11 @@ All branches start expanded, with the first task selected. The selected task is
 bold with a `>` marker after its hierarchy indentation. Titles occupy one row and
 are clipped at the right edge. Scrolling moves only far enough to keep selection
 visible, without animation or centring. Empty files show `No tasks yet.`
+
+Sibling navigation works at every nesting level, including top-level tasks. At
+the first or last sibling, movement in that direction does nothing: it never
+wraps or jumps to another parent. Expansion states are preserved, and sibling
+jumps use the same scrolling behaviour as ordinary navigation.
 
 ## File format
 
@@ -104,7 +110,7 @@ executable path or activate the source environment first.
 
 Tests cover exclusive initialization, nested loading and invalid input, CLI
 errors, discovery from subdirectories and a real linked worktree, visible-row
-navigation, collapse/expand, boundary scrolling, resize visibility, marker
+navigation, sibling jumps and boundaries, collapse/expand, boundary scrolling, resize visibility, marker
 rendering, literal titles, empty state, quitting, and unchanged task bytes and
 modification time after a viewer session. UI tests use Textual's headless pilot.
 

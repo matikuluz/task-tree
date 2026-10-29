@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from rich.style import Style
 
 from tasktree.app import TaskTreeApp
@@ -38,7 +39,7 @@ async def test_navigation_and_collapse():
         assert tree.cursor_node.data.id == "d"
         await pilot.press("up")
         assert tree.cursor_node.data.id == "b"
-        await pilot.press("left", "right", "enter", "shift+space", "shift+left", "shift+down")
+        await pilot.press("left", "right", "enter", "shift+space", "shift+left")
         assert tree.cursor_node.data.id == "b"
         assert not tree.cursor_node.is_expanded
         await pilot.press("space", "down")
@@ -128,8 +129,90 @@ async def test_empty_and_quit():
     async with app.run_test() as pilot:
         assert str(app.query_one("#empty").content) == "No tasks yet."
         assert not app.query(TaskTree)
-        await pilot.press("up", "down", "space", "q")
+        await pilot.press("up", "down", "shift+up", "shift+down", "space", "q")
         assert not app.is_running
+
+
+@pytest.mark.parametrize("start, moves", [
+    ("a", [("up", "a"), ("down", "g"), ("down", "i"), ("down", "i"), ("up", "g"), ("up", "a"), ("up", "a")]),
+    ("b", [("up", "b"), ("down", "e"), ("down", "e"), ("up", "b"), ("up", "b")]),
+    ("c", [("up", "c"), ("down", "d"), ("down", "d"), ("up", "c"), ("up", "c")]),
+    ("c1", [("up", "c1"), ("down", "c1")]),
+    ("h", [("up", "h"), ("down", "h")]),
+])
+async def test_sibling_navigation_at_every_level(start, moves):
+    tasks = [
+        Task("a", "Root A", [
+            Task("b", "Child B", [
+                Task("c", "Grandchild C", [Task("c1", "Leaf C1")]),
+                Task("d", "Grandchild D", [Task("d1", "Leaf D1")]),
+            ]),
+            Task("e", "Child E", [Task("f", "Leaf F")]),
+        ]),
+        Task("g", "Root G", [Task("h", "Leaf H")]),
+        Task("i", "Root I"),
+    ]
+    app = TaskTreeApp("Repository", tasks)
+    async with app.run_test() as pilot:
+        tree = app.query_one(TaskTree)
+        nodes = [tree.get_node_at_line(line) for line in range(tree.last_line + 1)]
+        expansion = [node.is_expanded for node in nodes]
+        position = next(index for index, node in enumerate(nodes) if node.data.id == start)
+        await pilot.press(*(["down"] * position))
+        for direction, expected in moves:
+            await pilot.press(f"shift+{direction}")
+            assert tree.cursor_node.data.id == expected
+            assert [node.is_expanded for node in nodes] == expansion
+        assert "Shift+↑/↓ Sibling" in str(app.query_one("#help").content)
+
+
+async def test_siblings_preserve_collapsed_branches_and_ordinary_navigation():
+    app = TaskTreeApp("Repository", branch_tasks())
+    async with app.run_test() as pilot:
+        tree = app.query_one(TaskTree)
+        await pilot.press("down", "space")  # collapse B, leaving its parent expanded
+        branch = tree.cursor_node
+        await pilot.press("shift+down")
+        assert tree.cursor_node.data.id == "d"
+        await pilot.press("shift+up")
+        assert tree.cursor_node is branch
+        assert not branch.is_expanded
+        await pilot.press("down")
+        assert tree.cursor_node.data.id == "d"
+        await pilot.press("up", "space", "down")
+        assert tree.cursor_node.data.id == "c"  # ordinary Down still visits descendants
+        await pilot.press("up")
+        assert tree.cursor_node is branch
+
+
+async def test_sibling_jumps_scroll_only_to_keep_selection_visible():
+    tasks = [
+        Task("branch", "Branch", [Task(str(i), f"Child {i}") for i in range(25)]),
+        Task("next", "Next"),
+        Task("last", "Last"),
+    ]
+    app = TaskTreeApp("Repository", tasks)
+    async with app.run_test(size=(60, 12)) as pilot:
+        tree = app.query_one(TaskTree)
+        assert tree.scrollable_content_region.height == 10
+        await pilot.press("shift+down")
+        assert tree.cursor_node.data.id == "next"
+        assert tree.scroll_y == 17
+        await pilot.press("shift+down")
+        assert tree.cursor_node.data.id == "last"
+        assert tree.scroll_y == 18
+        await pilot.press("shift+up")
+        assert tree.cursor_node.data.id == "next"
+        assert tree.scroll_y == 18  # already visible: no scrolling
+        await pilot.press("shift+up")
+        assert tree.cursor_node.data.id == "branch"
+        assert tree.scroll_y == 0
+        assert tree.cursor_node.is_expanded
+        await pilot.press("space", "shift+down")
+        assert tree.cursor_node.data.id == "next"
+        assert tree.scroll_y == 0
+        await pilot.press("shift+up")
+        assert not tree.cursor_node.is_expanded
 
 
 async def test_open_close_does_not_write(tmp_path):

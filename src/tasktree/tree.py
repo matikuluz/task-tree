@@ -16,6 +16,8 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     BINDINGS = [
         Binding("up", "cursor_up", "Up", show=False),
         Binding("down", "cursor_down", "Down", show=False),
+        Binding("shift+up", "cursor_previous_sibling", "Previous sibling", show=False),
+        Binding("shift+down", "cursor_next_sibling", "Next sibling", show=False),
         Binding("space", "toggle_node", "Expand/collapse", show=False),
     ]
 
@@ -39,6 +41,20 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         self.focus()
         self.move_cursor_to_line(0)
 
+    def action_cursor_previous_sibling(self) -> None:
+        """Select the previous sibling, stopping at the current parent's boundary."""
+        node = self.cursor_node
+        if node is not None and node.previous_sibling is not None:
+            self.cursor_line = node.previous_sibling.line
+            self.scroll_to_line(self.cursor_line, animate=False)
+
+    def action_cursor_next_sibling(self) -> None:
+        """Select the next sibling without visiting descendants or another parent."""
+        node = self.cursor_node
+        if node is not None and node.next_sibling is not None:
+            self.cursor_line = node.next_sibling.line
+            self.scroll_to_line(self.cursor_line, animate=False)
+
     def render_label(self, node: TreeNode[Task], base_style: Style, style: Style) -> Text:
         selected = node is self.cursor_node
         label = super().render_label(node, base_style, style)
@@ -50,4 +66,8 @@ class TaskTree(Tree[Task], inherit_bindings=False):
 
     def on_resize(self, event: events.Resize) -> None:
         # Tree rebuilds its geometry on resize; keep the cursor visible afterwards.
-        self.call_after_refresh(self.scroll_to_line, self.cursor_line, animate=False)
+        self.call_after_refresh(self._scroll_cursor_into_view)
+
+    def _scroll_cursor_into_view(self) -> None:
+        # A key may have moved the cursor since the resize was queued.
+        self.scroll_to_line(self.cursor_line, animate=False)

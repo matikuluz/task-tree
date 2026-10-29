@@ -35,4 +35,4 @@ class TaskTreeApp(App[None]):
             yield TaskTree(self.tasks)
         else:
             yield Static("No tasks yet.", id="empty")
-        yield Static("↑/↓ Move   Space Expand/collapse   Q Quit", id="help")
+        yield Static("↑/↓ Move   Shift+↑/↓ Sibling   Space Expand/collapse   Q Quit", id="help")
