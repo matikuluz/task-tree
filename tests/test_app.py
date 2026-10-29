@@ -129,7 +129,7 @@ async def test_empty_and_quit():
     async with app.run_test() as pilot:
         assert str(app.query_one("#empty").content) == "No tasks yet."
         assert not app.query(TaskTree)
-        await pilot.press("up", "down", "shift+up", "shift+down", "space", "q")
+        await pilot.press("up", "down", "shift+up", "shift+down", "f", "escape", "space", "q")
         assert not app.is_running
 
 
@@ -223,6 +223,6 @@ async def test_open_close_does_not_write(tmp_path):
     stat = store.path.stat()
     app = TaskTreeApp("Repository", store.load())
     async with app.run_test() as pilot:
-        await pilot.press("space", "down", "space", "Q")
+        await pilot.press("f", "f", "escape", "space", "escape", "space", "down", "space", "Q")
     assert store.path.read_bytes() == before
     assert store.path.stat().st_mtime_ns == stat.st_mtime_ns

@@ -30,9 +30,13 @@ class TaskTreeApp(App[None]):
         self.tasks = tasks
 
     def compose(self) -> ComposeResult:
-        yield Static(Text(self.repository_name), id="repository")
+        yield Static(Text(f"{self.repository_name} | Root"), id="repository")
         if self.tasks:
             yield TaskTree(self.tasks)
         else:
             yield Static("No tasks yet.", id="empty")
-        yield Static("↑/↓ Move   Shift+↑/↓ Sibling   Space Expand/collapse   Q Quit", id="help")
+        yield Static("↑/↓ Move  Shift+↑/↓ Sibling  Space Toggle  F Focus  Esc Back  Q Quit", id="help")
+
+    def on_task_tree_scope_changed(self, message: TaskTree.ScopeChanged) -> None:
+        path = " / ".join(["Root", *message.titles])
+        self.query_one("#repository", Static).update(Text(f"{self.repository_name} | {path}"))

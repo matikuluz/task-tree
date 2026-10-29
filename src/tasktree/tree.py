@@ -4,6 +4,7 @@ from rich.style import Style
 from rich.text import Text
 from textual import events
 from textual.binding import Binding
+from textual.message import Message
 from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
@@ -11,7 +12,7 @@ from .models import Task
 
 
 class TaskTree(Tree[Task], inherit_bindings=False):
-    """Navigate Textual's visible rows with only the milestone's task keys."""
+    """Navigate visible task rows and temporary branch scopes."""
 
     BINDINGS = [
         Binding("up", "cursor_up", "Up", show=False),
@@ -19,10 +20,22 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         Binding("shift+up", "cursor_previous_sibling", "Previous sibling", show=False),
         Binding("shift+down", "cursor_next_sibling", "Next sibling", show=False),
         Binding("space", "toggle_node", "Expand/collapse", show=False),
+        Binding("f,F", "focus_branch", "Focus branch", show=False),
+        Binding("escape", "leave_scope", "Back", show=False),
     ]
+
+    class ScopeChanged(Message):
+        """Notify the app that the breadcrumb path changed."""
+
+        def __init__(self, titles: list[str]) -> None:
+            super().__init__()
+            self.titles = titles
 
     def __init__(self, tasks: list[Task]) -> None:
         super().__init__("Tasks", id="tasks")
+        self._tasks = tasks
+        self._scope_path: list[Task] = []
+        self._expanded: dict[str, bool] = {}
         self.show_root = False
         self.auto_expand = False
         self.center_scroll = False
@@ -33,13 +46,56 @@ class TaskTree(Tree[Task], inherit_bindings=False):
     def _add_tasks(self, parent: TreeNode[Task], tasks: list[Task]) -> None:
         for task in tasks:
             node = parent.add(
-                Text(task.title), task, expand=True, allow_expand=bool(task.children)
+                Text(task.title), task, expand=self._expanded.get(task.id, True),
+                allow_expand=bool(task.children),
             )
             self._add_tasks(node, task.children)
 
     def on_mount(self) -> None:
         self.focus()
         self.move_cursor_to_line(0)
+
+    def action_focus_branch(self) -> None:
+        """Hide the selected branch root and show its children in a new scope."""
+        node = self.cursor_node
+        if node is None or node.data is None or not node.data.children:
+            return
+        path: list[Task] = []
+        while node is not None and node is not self.root:
+            assert node.data is not None
+            path.append(node.data)
+            node = node.parent
+        self._scope_path.extend(reversed(path))
+        self._show_scope()
+
+    def action_leave_scope(self) -> None:
+        """Return to the parent scope and select the branch just exited."""
+        if self._scope_path:
+            exited = self._scope_path.pop()
+            self._show_scope(exited.id)
+
+    def _remember_expansion(self, parent: TreeNode[Task]) -> None:
+        for node in parent.children:
+            assert node.data is not None
+            self._expanded[node.data.id] = node.is_expanded
+            self._remember_expansion(node)
+
+    def _show_scope(self, selected_id: str | None = None) -> None:
+        self._remember_expansion(self.root)
+        self.unselect()
+        self.clear()
+        tasks = self._scope_path[-1].children if self._scope_path else self._tasks
+        self._add_tasks(self.root, tasks)
+        # Building visible rows through the public API also updates node line numbers.
+        self.cursor_line = 0
+        if selected_id is not None:
+            for line in range(self.last_line + 1):
+                node = self.get_node_at_line(line)
+                if node is not None and node.data is not None and node.data.id == selected_id:
+                    self.cursor_line = line
+                    break
+        self.call_after_refresh(self._scroll_cursor_into_view)
+        self.post_message(self.ScopeChanged([task.title for task in self._scope_path]))
 
     def action_cursor_previous_sibling(self) -> None:
         """Select the previous sibling, stopping at the current parent's boundary."""

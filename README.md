@@ -43,6 +43,8 @@ file. `open` requires a valid file and never writes it.
 | Up / Down | Move one visible task, without wrapping |
 | Shift + Up / Down | Move to the previous / next task with the same parent, skipping descendants |
 | Space | Expand or collapse the selected branch; no effect on leaves |
+| F | Focus the selected branch, showing its children and descendants |
+| Escape | Return one scope level and select the branch just exited |
 | Q | Exit |
 | Left / Right / Enter | No task action |
 
@@ -55,6 +57,21 @@ Sibling navigation works at every nesting level, including top-level tasks. At
 the first or last sibling, movement in that direction does nothing: it never
 wraps or jumps to another parent. Expansion states are preserved, and sibling
 jumps use the same scrolling behaviour as ordinary navigation.
+
+Focus mode shows the current path in the header, for example
+`Root / Planning / Define scope`. The focused task becomes the scope root in
+the breadcrumb and is not a selectable row. Its first child is selected, and
+the existing expansion states determine which descendants are visible. Press F
+again on a child branch to focus further. Escape moves to the parent scope,
+selecting the task whose branch you exited; focusing a deeply nested task builds
+the full ancestor path, so Escape still returns one hierarchy level at a time.
+At Root, Escape does nothing; F on a leaf does nothing. Enter remains available
+for future action confirmation and currently has no task action.
+
+Arrow keys, sibling shortcuts, and scrolling operate only within the current
+scope. Expansion changes persist across scope changes for the current session,
+including when focusing a collapsed branch. Focus, selection, and expansion never
+modify the task file.
 
 ## File format
 
@@ -110,8 +127,9 @@ executable path or activate the source environment first.
 
 Tests cover exclusive initialization, nested loading and invalid input, CLI
 errors, discovery from subdirectories and a real linked worktree, visible-row
-navigation, sibling jumps and boundaries, collapse/expand, boundary scrolling, resize visibility, marker
-rendering, literal titles, empty state, quitting, and unchanged task bytes and
+navigation, sibling jumps and boundaries, nested focus and return, scope
+boundaries, expansion preservation, boundary scrolling, resize visibility, marker
+rendering, literal titles and breadcrumbs, empty state, quitting, and unchanged task bytes and
 modification time after a viewer session. UI tests use Textual's headless pilot.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
