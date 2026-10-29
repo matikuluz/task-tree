@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from rich.style import Style
+from textual.widgets import Input
 
 from tasktree.app import TaskTreeApp
 from tasktree.models import Task
@@ -223,6 +224,13 @@ async def test_open_close_does_not_write(tmp_path):
     stat = store.path.stat()
     app = TaskTreeApp("Repository", store.load())
     async with app.run_test() as pilot:
+        await pilot.press("slash")
+        app.screen.query_one(Input).value = "storage"
+        await pilot.pause()
+        await pilot.press("escape", "slash")
+        app.screen.query_one(Input).value = "Implementation/Storage/"
+        await pilot.pause()
+        await pilot.press("enter")
         await pilot.press("f", "f", "escape", "space", "escape", "space", "down", "space", "Q")
     assert store.path.read_bytes() == before
     assert store.path.stat().st_mtime_ns == stat.st_mtime_ns

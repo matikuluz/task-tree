@@ -45,6 +45,7 @@ file. `open` requires a valid file and never writes it.
 | Space | Expand or collapse the selected branch; no effect on leaves |
 | F | Focus the selected branch, showing its children and descendants |
 | Escape | Return one scope level and select the branch just exited |
+| / | Open title search across the entire task tree |
 | Q | Exit |
 | Left / Right / Enter | No task action |
 
@@ -72,6 +73,61 @@ Arrow keys, sibling shortcuts, and scrolling operate only within the current
 scope. Expansion changes persist across scope changes for the current session,
 including when focusing a collapsed branch. Focus, selection, and expansion never
 modify the task file.
+
+## Search
+
+Press / while browsing to open a results view with a text input at the bottom.
+The opening slash is consumed, so the query starts empty. Inside search or any
+other text input, / types normally. Ctrl + F is not bound to search.
+Results update as you type and include all tasks, even collapsed descendants and tasks outside the
+current focus. Matching is case-insensitive and literal: exact titles rank first,
+then title prefixes, then substrings. Each group retains depth-first tree order.
+There is no fuzzy matching or attribute filtering.
+
+Queries without `/` search titles globally. With `/`, everything before the final
+slash filters branches, and everything after it searches descendant titles:
+
+| Query | Results |
+| --- | --- |
+| `Implementation/` | All descendants of every Implementation branch, in tree order |
+| `Implementation/login` | Descendants with login in their titles, ranked as above |
+| `Implementation/Storage/check` | Titles matching check beneath consecutive Implementation → Storage branches |
+| `Root/Implementation/` | Descendants of top-level Implementation branches only |
+| `Root/` | Every task, in tree order |
+
+Branch names match complete, case-insensitive segments. Paths beginning with
+`Root/` are anchored at the tree root; other paths may start anywhere. Segments
+must be consecutive: `Implementation/Storage/` does not match an intervening
+branch. Every matching branch is searched, including collapsed descendants, and
+overlapping matches return each stable task ID only once. The filtered branch
+itself is excluded (but can appear as a descendant of another matching branch).
+Empty path segments do not match a branch.
+
+A trailing slash lists descendants without title-match bolding. When a title
+query follows the slash, only matching title substrings are bold; paths are not
+highlighted. Results always display their full actual parent paths, truncated
+only when necessary. Unmatched paths show `No matching branch path`; a matched
+path with no matching titles shows `No matching tasks`.
+
+Results show two columns: the task title and its parent path, such as
+`Root / Implementation`. All matching portions of the original title are bold.
+The selected row has a `>` marker and background highlight. Long paths use `…`
+at the beginning to preserve the final path components where possible. An empty
+query shows `Type to search`; a query without matches shows `No matching tasks`.
+
+While searching, Up / Down move through results without wrapping and scroll only
+as needed to keep the selection visible. Typing stays in the input, including
+F, Q, and Space; tree shortcuts are inactive. Enter opens the selected result:
+
+- For a task with children, focus into that task and select its first child.
+- For a leaf, focus into its parent and select the leaf. A root-level leaf is
+  selected at Root.
+
+Destination ancestors are expanded as needed, and the full actual ancestor chain
+is restored in the breadcrumb. Escape after a jump navigates up those parents.
+Enter with no selected result does nothing. Escape while searching cancels and
+restores the exact previous scope, selection, expansion, and scroll position.
+Search and result navigation never write to the task file.
 
 ## File format
 
@@ -131,6 +187,12 @@ navigation, sibling jumps and boundaries, nested focus and return, scope
 boundaries, expansion preservation, boundary scrolling, resize visibility, marker
 rendering, literal titles and breadcrumbs, empty state, quitting, and unchanged task bytes and
 modification time after a viewer session. UI tests use Textual's headless pilot.
+Search tests cover ranking, Unicode case-insensitive matching and highlighting,
+duplicate titles with stable IDs, hidden tasks, input isolation, cancellation,
+result scrolling and truncation, and jumps to branch and leaf results.
+Path tests cover trailing slashes, consecutive nested segments, root anchoring,
+case-insensitive complete names, overlapping duplicate branches, unmatched paths,
+title-only ranking, and title-only highlighting.
 
 Textual is pinned to 8.2.8, whose installed source/docstrings were checked for
 `Tree` bindings, `render_label`, cursor clamping, and `scroll_to_line`. The small

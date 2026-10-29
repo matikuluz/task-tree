@@ -80,8 +80,20 @@ class TaskTree(Tree[Task], inherit_bindings=False):
             self._expanded[node.data.id] = node.is_expanded
             self._remember_expansion(node)
 
-    def _show_scope(self, selected_id: str | None = None) -> None:
+    def jump_to(self, task: Task, ancestors: tuple[Task, ...]) -> None:
+        """Reveal a search destination using its actual ancestor chain."""
         self._remember_expansion(self.root)
+        for ancestor in ancestors:
+            self._expanded[ancestor.id] = True
+        self._scope_path = list(ancestors)
+        if task.children:
+            self._expanded[task.id] = True
+            self._scope_path.append(task)
+        self._show_scope(None if task.children else task.id, remember_expansion=False)
+
+    def _show_scope(self, selected_id: str | None = None, *, remember_expansion: bool = True) -> None:
+        if remember_expansion:
+            self._remember_expansion(self.root)
         self.unselect()
         self.clear()
         tasks = self._scope_path[-1].children if self._scope_path else self._tasks
