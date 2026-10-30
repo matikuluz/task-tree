@@ -52,6 +52,7 @@ an edited title updates that title atomically.
 | Q | Exit |
 | Left / Right | Select a bottom-bar action, wrapping around available actions |
 | Enter | Enter Add placement mode or edit the selected task's title |
+| Delete action | Enter Delete navigation mode; no task is deleted |
 
 Saved branch expansion is restored, with the first visible task selected.
 Older tasks without an expanded field default to expanded. The selected task is
@@ -106,11 +107,20 @@ and returning from search preserve the selected action.
 
 Enter on Add starts placement mode, described below.
 Enter on Edit opens the selected task's inline title editor.
-In an empty tree, Add remains selected and Edit is dimmed and struck through;
+In an empty tree, Add remains selected and Edit and Delete are dimmed and struck through;
 navigation skips unavailable actions. The bar wraps onto extra rows if needed
 when the terminal narrows. During search or text entry the bar is hidden and its
 bindings yield to the input. Enter in search still jumps to a result, and Escape
 still cancels. Explicit title saves and branch expansion changes modify the task file.
+
+## Delete navigation mode
+
+Select the trash action and press Enter to navigate existing task targets and
+folder-entry options. Up / Down and Home / End move through the visible entries;
+Space toggles a branch, Enter on a folder enters it, and Go back returns one
+scope. Enter on a task shows `Deletion — coming soon`. Escape restores the
+previous browsing scope, selection, and viewport with Delete selected. Saved
+expansion changes remain in effect. No task deletion or confirmation is provided.
 
 ## Inline title editing
 

@@ -89,7 +89,7 @@ class TaskTreeApp(App[None]):
     async def action_activate_action(self) -> None:
         action = self._action_bar.selected_action
         if self._action_bar.available(action):
-            if action.requires_task:
+            if action.label == "Edit task":
                 await self.query_one(TaskTree).begin_edit()
                 self._update_action_bar()
             else:
@@ -98,6 +98,7 @@ class TaskTreeApp(App[None]):
                     self.tasks, tree.scope_path if tree else (),
                     tree.expansion_snapshot() if tree else {},
                     tree.cursor_node.data.id if tree and tree.cursor_node else None,
+                    delete=action.label == "Delete task",
                 )
                 anchor = None
                 if tree and tree.cursor_node:

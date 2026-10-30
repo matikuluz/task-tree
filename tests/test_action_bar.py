@@ -21,16 +21,16 @@ async def test_action_order_rendering_wrap_and_task_highlight():
         bar = app.query_one(ActionBar)
         tree = app.query_one(TaskTree)
         original = tree.cursor_node
-        assert bar.render().plain == "[+ Add task] [✎]"
+        assert bar.render().plain == "[+ Add task] [✎] [🗑]"
         text = bar.render()
         for index in range(len("[+ Add task]")):
             assert text.get_style_at_offset(Console(), index).bold
         assert not text.get_style_at_offset(Console(), len(text) - 1).bold
         await pilot.press("left")
-        assert bar.render().plain == "[+] [✎ Edit task]"
-        await pilot.press("left")
+        assert bar.render().plain == "[+] [✎] [🗑 Delete task]"
+        await pilot.press("right")
         assert bar.selected == 0
-        await pilot.press("right", "right")
+        await pilot.press("right", "right", "right")
         assert bar.selected == 0
         assert tree.cursor_node is original
         assert app.focused is tree
@@ -135,7 +135,7 @@ async def test_action_bar_wraps_after_resize_and_task_stays_visible():
         await pilot.pause()
         assert bar.size.height >= 2
         assert bar.region.bottom <= app.screen.size.height
-        assert bar.render().plain == "[+] [✎ Edit task]"
+        assert bar.render().plain == "[+] [✎ Edit task] [🗑]"
         assert tree.scroll_y <= tree.cursor_line < tree.scroll_y + tree.scrollable_content_region.height
         await pilot.press("right")
-        assert bar.render().plain == "[+ Add task] [✎]"
+        assert bar.render().plain == "[+] [✎] [🗑 Delete task]"

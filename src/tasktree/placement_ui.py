@@ -32,8 +32,9 @@ class CreatedTask:
 class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
     """Use browsing's native connectors and active guides for temporary rows."""
 
-    def __init__(self) -> None:
+    def __init__(self, delete: bool = False) -> None:
         super().__init__("Placement", id="placement-list")
+        self.delete = delete
         self.show_root = False
         self.auto_expand = False
         self.center_scroll = False
@@ -42,8 +43,12 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
 
     def render_label(self, node: TreeNode[PlacementRow], base_style: Style, style: Style) -> Text:
         selected = node is self.cursor_node
-        text = Text("+ " if selected else "  ", no_wrap=True, overflow="ellipsis")
-        text.append_text(super().render_label(node, base_style, style))
+        cursor = "🗑 " if self.delete else "+ "
+        text = Text(cursor if selected else "  ", no_wrap=True, overflow="ellipsis")
+        label = super().render_label(node, base_style, style)
+        if self.delete and node.data and node.data.task and node.data.task.children and not self.screen.model.expanded.get(node.data.task.id, node.data.task.expanded):
+            label = Text(label.plain.replace("▼ ", "▶ ", 1))
+        text.append_text(label)
         if selected:
             text.stylize("bold")
         return text
@@ -56,7 +61,7 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
         if self.screen.editor is not None:
             return
         row = node.data
-        if row is not None and row.entry is not None and row.entry.kind == "folder":
+        if row is not None and row.entry is not None and row.entry.kind in ("folder", "task"):
             self.screen.model.selected = self.screen.model.entries.index(row.entry)
             self.screen.action_toggle()
 
@@ -105,8 +110,8 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="placement-path")
-        yield PlacementTree()
-        yield Static("Add: ↑↓ Move  Home/End Ends  Enter Choose  Space Fold  Esc Cancel", id="placement-help")
+        yield PlacementTree(self.model.delete)
+        yield Static(f"{'Delete' if self.model.delete else 'Add'}: ↑↓ Move  Home/End Ends  Enter Choose  Space Fold  Esc Cancel", id="placement-help")
 
     def on_mount(self) -> None:
         self.query_one(PlacementTree).focus(scroll_visible=False)
@@ -118,8 +123,10 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
         text = Text(no_wrap=True, overflow="ellipsis")
         if row.task is not None:
             text.append(row.task.title)
-            if selected and row.entry is not None:
+            if selected and row.entry is not None and row.entry.kind == "folder":
                 text.append("  [Enter folder]")
+        elif row.entry.kind == "folder":
+            text.append(f"{row.entry.task.title}  [Enter folder]")
         elif row.entry.kind == "back":
             text.append("Go back")
         else:
@@ -131,14 +138,19 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
         scroll = tree.scroll_y
         tree.unselect()
         tree.clear()
-        rows = [row for row in self.model.rows if row.entry is None or
-                row.entry.kind != "insert" or row.entry == self.model.current]
+        rows = [row for row in self.model.rows if
+                (row.entry is None or row.entry.kind != "insert" or row.entry == self.model.current)
+                and not (self.model.delete and row.entry is not None and
+                         row.entry.kind == "folder" and row.entry != self.model.current)
+                and not (self.model.delete and self.model.current.kind == "folder" and
+                         row.entry is not None and row.entry.kind == "task" and
+                         row.task.id == self.model.current.task.id)]
         parents = [tree.root]
         selected = None
         for row in rows:
             node = parents[row.depth].add(
                 self._label(row), row,
-                expand=self.model.expanded.get(row.task.id, True) if row.task else True,
+                expand=(True if self.model.delete else self.model.expanded.get(row.task.id, True)) if row.task else True,
                 allow_expand=bool(row.task and row.task.children),
             )
             parents = [*parents[:row.depth + 1], node]
@@ -155,7 +167,7 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
             tree.scroll_to_line(tree.cursor_line, animate=False)
         tree.refresh()
         path = " / ".join(["Root", *(task.title for task in self.model.path)])
-        self.query_one("#placement-path", Static).update(Text(f"{self.repository_name} | {path} | Add"))
+        self.query_one("#placement-path", Static).update(Text(f"{self.repository_name} | {path} | {'Delete' if self.model.delete else 'Add'}"))
 
     def action_move(self, delta: int) -> None:
         self._centering_started = True
@@ -170,7 +182,7 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
     def action_toggle(self) -> None:
         self._centering_started = True
         entry = self.model.current
-        if entry.kind == "folder" and self._save_expansion is not None:
+        if entry.kind in ("folder", "task") and entry.task.children and self._save_expansion is not None:
             expanded = not self.model.expanded.get(entry.task.id, entry.task.expanded)
             if not self._save_expansion(entry.task, expanded):
                 return
@@ -179,6 +191,9 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
 
     async def action_activate(self) -> None:
         self._centering_started = True
+        if self.model.delete and self.model.current.kind == "task":
+            self.notify("Deletion — coming soon", timeout=2, markup=False)
+            return
         if self.model.current.kind != "insert":
             self.model.enter()
             self._render_entries()

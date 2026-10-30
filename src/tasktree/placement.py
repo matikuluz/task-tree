@@ -10,7 +10,7 @@ from .models import Task
 class PlacementEntry:
     """An insertion gap, folder option, or back command; never a persisted task."""
 
-    kind: Literal["insert", "folder", "back"]
+    kind: Literal["insert", "folder", "back", "task"]
     ancestors: tuple[Task, ...]
     index: int = 0
     task: Task | None = None
@@ -29,8 +29,9 @@ class PlacementModel:
     """Navigate visible gaps and folders without changing the original tree."""
 
     def __init__(self, tasks: list[Task], path: tuple[Task, ...] = (),
-                 expanded: dict[str, bool] | None = None, after_id: str | None = None) -> None:
+                 expanded: dict[str, bool] | None = None, after_id: str | None = None, delete: bool = False) -> None:
         self.tasks = tasks
+        self.delete = delete
         self.path = path
         self.expanded = dict(expanded or {})
         self.rows: list[PlacementRow] = []
@@ -38,6 +39,9 @@ class PlacementModel:
         self.selected = 0
         self._build()
         if after_id is not None:
+            if delete:
+                self.selected = next(i for i, entry in enumerate(self.entries) if entry.kind == "task" and entry.task.id == after_id)
+                return
             # The gap follows the selected sibling's entire visible subtree.
             for index, entry in enumerate(self.entries):
                 if entry.kind == "insert" and entry.index > 0:
@@ -60,8 +64,16 @@ class PlacementModel:
         self.entries = [row.entry for row in self.rows if row.entry is not None]
 
     def _walk(self, tasks: list[Task], ancestors: tuple[Task, ...], depth: int) -> None:
-        self.rows.append(PlacementRow(depth, PlacementEntry("insert", ancestors)))
+        if not self.delete:
+            self.rows.append(PlacementRow(depth, PlacementEntry("insert", ancestors)))
         for index, task in enumerate(tasks):
+            if self.delete:
+                self.rows.append(PlacementRow(depth, PlacementEntry("task", ancestors, index, task), task))
+                if task.children:
+                    self.rows.append(PlacementRow(depth, PlacementEntry("folder", ancestors, index, task), task))
+                    if self.expanded.get(task.id, task.expanded):
+                        self._walk(task.children, (*ancestors, task), depth + 1)
+                continue
             entry = PlacementEntry("folder", ancestors, index, task) if task.children else None
             self.rows.append(PlacementRow(depth, entry, task))
             if task.children and self.expanded.get(task.id, True):
@@ -76,7 +88,7 @@ class PlacementModel:
 
     def toggle(self) -> None:
         entry = self.current
-        if entry.kind == "folder" and entry.task is not None:
+        if entry.kind in ("folder", "task") and entry.task is not None and entry.task.children:
             self.expanded[entry.task.id] = not self.expanded.get(entry.task.id, True)
             self._build()
             self.selected = self.entries.index(entry)
