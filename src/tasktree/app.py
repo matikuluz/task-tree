@@ -26,6 +26,10 @@ class TaskTreeApp(App[None]):
         Binding("left", "previous_action", "Previous action", priority=True),
         Binding("right", "next_action", "Next action", priority=True),
         Binding("enter", "activate_action", "Activate action", priority=True),
+        Binding("1", "select_mode(0)", "View", priority=True, show=False),
+        Binding("2", "select_mode(1)", "Add", priority=True, show=False),
+        Binding("3", "select_mode(2)", "Edit", priority=True, show=False),
+        Binding("4", "select_mode(3)", "Delete", priority=True, show=False),
     ]
     ENABLE_COMMAND_PALETTE = False
     CSS = """
@@ -55,7 +59,7 @@ class TaskTreeApp(App[None]):
             yield TaskTree(self.tasks, self.persist_expansion)
         else:
             yield Static("No tasks yet.", id="empty")
-        yield Static("↑↓ Task ⇧↑↓ Sibling Home/End ←→ Action Enter ␠ Fold F Focus Esc R Root / Q", id="help")
+        yield Static("↑↓ Task ⇧↑↓ Sibling Home/End ←→ Mode Enter 1-4 ␠ Fold F Focus Esc R / Q", id="help")
         yield self._action_bar
 
     def _is_browsing(self) -> bool:
@@ -64,7 +68,7 @@ class TaskTreeApp(App[None]):
         ) and not self.query(TitleEditor)
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        if action in {"search", "previous_action", "next_action", "activate_action"}:
+        if action in {"search", "previous_action", "next_action", "activate_action", "select_mode"}:
             # Priority browsing bindings must yield to text entry and search results.
             return self._is_browsing()
         if action == "quit" and (isinstance(self.screen, (SearchScreen, PlacementScreen)) or self.query(TitleEditor)):
@@ -86,9 +90,23 @@ class TaskTreeApp(App[None]):
     def action_next_action(self) -> None:
         self._action_bar.move(1)
 
+    async def action_select_mode(self, index: int) -> None:
+        if self._action_bar.available(self._action_bar.ACTIONS[index]):
+            self._action_bar.selected = index
+            await self.action_activate_action()
+
+    def _return_to_view(self) -> None:
+        self._action_bar.active = 0
+        self._action_bar.selected = 0
+        self._action_bar.refresh(layout=True)
+
     async def action_activate_action(self) -> None:
         action = self._action_bar.selected_action
         if self._action_bar.available(action):
+            self._action_bar.active = self._action_bar.selected
+            self._action_bar.refresh(layout=True)
+            if action.label == "View":
+                return
             if action.label == "Edit task":
                 await self.query_one(TaskTree).begin_edit()
                 self._update_action_bar()
@@ -110,6 +128,7 @@ class TaskTreeApp(App[None]):
                 self._update_action_bar()
 
     async def _placement_closed(self, result: CreatedTask | None) -> None:
+        self._return_to_view()
         if result is not None:
             siblings = result.destination.ancestors[-1].children if result.destination.ancestors else self.tasks
             siblings.insert(result.destination.index, result.task)
@@ -155,10 +174,12 @@ class TaskTreeApp(App[None]):
             tree.edit_error(str(error))
             return
         await tree.finish_edit(title)
+        self._return_to_view()
         self._update_action_bar()
 
     async def on_title_editor_cancelled(self, message: TitleEditor.Cancelled) -> None:
         await self.query_one(TaskTree).finish_edit()
+        self._return_to_view()
         self._update_action_bar()
 
     def _update_action_bar(self) -> None:

@@ -35,6 +35,8 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
     def __init__(self, delete: bool = False) -> None:
         super().__init__("Placement", id="placement-list")
         self.delete = delete
+        if delete:
+            self.add_class("delete-mode")
         self.show_root = False
         self.auto_expand = False
         self.center_scroll = False
@@ -49,8 +51,11 @@ class PlacementTree(Tree[PlacementRow], inherit_bindings=False):
         if self.delete and node.data and node.data.task and node.data.task.children and not self.screen.model.expanded.get(node.data.task.id, node.data.task.expanded):
             label = Text(label.plain.replace("▼ ", "▶ ", 1))
         text.append_text(label)
+        text.stylize("#ffffff" if selected else "#888888")
         if selected:
             text.stylize("bold")
+            if self.delete:
+                text.stylize("red", 0, len("🗑"))
         return text
 
     def scroll_to_line(self, line: int, animate: bool = False) -> None:
@@ -86,6 +91,7 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
     #placement-list > .tree--cursor,
     #placement-list:focus > .tree--cursor { background: transparent; text-style: none; }
     #placement-list > .tree--highlight-line { background: transparent; }
+    #placement-list.delete-mode > .tree--guides-selected { color: red; }
     #placement-help { height: 1; color: $text-muted; }
     #creation-error { background: $surface; }
     """

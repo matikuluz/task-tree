@@ -18,7 +18,7 @@ class Action:
 class ActionBar(Static):
     """Render actions without moving keyboard focus away from the task tree."""
 
-    ACTIONS = (Action("+", "Add task"), Action("✎", "Edit task", requires_task=True), Action("🗑", "Delete task", requires_task=True))
+    ACTIONS = (Action("●", "View"), Action("+", "Add task"), Action("✎", "Edit task", requires_task=True), Action("🗑", "Delete task", requires_task=True))
     DEFAULT_CSS = """
     ActionBar { height: auto; min-height: 1; padding: 0 1; }
     """
@@ -27,6 +27,7 @@ class ActionBar(Static):
         super().__init__(id="actions")
         self.has_task = has_task
         self.selected = 0
+        self.active = 0
 
     @property
     def selected_action(self) -> Action:

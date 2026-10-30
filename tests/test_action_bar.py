@@ -21,16 +21,16 @@ async def test_action_order_rendering_wrap_and_task_highlight():
         bar = app.query_one(ActionBar)
         tree = app.query_one(TaskTree)
         original = tree.cursor_node
-        assert bar.render().plain == "[+ Add task] [✎] [🗑]"
+        assert bar.render().plain == "[● View] [+] [✎] [🗑]"
         text = bar.render()
-        for index in range(len("[+ Add task]")):
+        for index in range(len("[● View]")):
             assert text.get_style_at_offset(Console(), index).bold
         assert not text.get_style_at_offset(Console(), len(text) - 1).bold
         await pilot.press("left")
-        assert bar.render().plain == "[+] [✎] [🗑 Delete task]"
+        assert bar.render().plain == "[●] [+] [✎] [🗑 Delete task]"
         await pilot.press("right")
         assert bar.selected == 0
-        await pilot.press("right", "right", "right")
+        await pilot.press("right", "right", "right", "right")
         assert bar.selected == 0
         assert tree.cursor_node is original
         assert app.focused is tree
@@ -60,8 +60,8 @@ async def test_empty_tree_skips_unavailable_edit_and_activates_add():
         assert bar.visible and bar.selected == 0
         style = bar.render().get_style_at_offset(Console(), len(bar.render()) - 1)
         assert style.dim and style.strike
-        await pilot.press("right", "right", "left", "left", "enter", "enter")
-        assert bar.selected == 0
+        await pilot.press("right", "right", "left", "enter", "enter")
+        assert bar.selected == 1
         assert isinstance(app.screen, PlacementScreen)
         assert app.screen.query_one(TitleEditor).value == ""
 
@@ -70,7 +70,7 @@ async def test_add_activation_opens_empty_draft_and_cancels():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("enter", "enter", "down")
+        await pilot.press("2", "enter", "down")
         assert tree.cursor_node.data.id == "a"
         assert isinstance(app.screen, PlacementScreen)
         assert app.screen.query_one(TitleEditor).value == ""
@@ -135,7 +135,7 @@ async def test_action_bar_wraps_after_resize_and_task_stays_visible():
         await pilot.pause()
         assert bar.size.height >= 2
         assert bar.region.bottom <= app.screen.size.height
-        assert bar.render().plain == "[+] [✎ Edit task] [🗑]"
+        assert bar.render().plain == "[●] [+ Add task] [✎] [🗑]"
         assert tree.scroll_y <= tree.cursor_line < tree.scroll_y + tree.scrollable_content_region.height
         await pilot.press("right")
-        assert bar.render().plain == "[+] [✎] [🗑 Delete task]"
+        assert bar.render().plain == "[●] [+] [✎ Edit task] [🗑]"

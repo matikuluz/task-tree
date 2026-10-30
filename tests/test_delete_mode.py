@@ -1,4 +1,5 @@
 import json
+from rich.style import Style
 
 from tasktree.action_bar import ActionBar
 from tasktree.app import TaskTreeApp
@@ -35,7 +36,7 @@ async def test_delete_targets_folders_cancel_and_preserves_file(tmp_path):
         assert screen.model.current.kind == "folder"
         await pilot.press("escape")
         assert tree.cursor_node is original
-        assert app.query_one(ActionBar).selected == 2
+        assert app.query_one(ActionBar).selected == 0
         assert [task.title for task in store.load()] == ["Branch", "Other"]
 
 
@@ -72,3 +73,22 @@ async def test_delete_collapse_persists_on_cancel(tmp_path):
         assert not app.query_one(TaskTree).cursor_node.is_expanded
     assert not store.load()[0].expanded
     assert store.load()[0].children[0].id == "b"
+
+async def test_delete_guides_and_cursor_are_red_but_titles_keep_selection_colors():
+    app = TaskTreeApp("Repo", [Task("a", "Branch", [Task("b", "Leaf"), Task("c", "Other")])])
+    async with app.run_test() as pilot:
+        await pilot.press("4")
+        tree = app.screen.query_one(PlacementTree)
+        red = Style(color="red").color
+        child = list(tree.render_line(1 - int(tree.scroll_y)))
+        assert any(any(char in segment.text for char in "├└│─") and segment.style.color.get_truecolor().hex.lower() == "#ff0000" for segment in child)
+        await pilot.press("down")
+        line = list(tree.render_line(tree.cursor_line - int(tree.scroll_y)))
+        assert any("🗑" in segment.text and segment.style.color == red for segment in line)
+        assert any("Leaf" in segment.text and segment.style.color.get_truecolor().hex.lower() == "#ffffff" for segment in line)
+        other = list(tree.render_line(tree.cursor_line + 1 - int(tree.scroll_y)))
+        assert any("Other" in segment.text and segment.style.color.get_truecolor().hex.lower() == "#888888" for segment in other)
+        await pilot.press("down")
+        selected = list(tree.render_line(tree.cursor_line - int(tree.scroll_y)))
+        assert any("🗑" in segment.text and segment.style.color == red for segment in selected)
+        assert any("Other" in segment.text and segment.style.color.get_truecolor().hex.lower() == "#ffffff" for segment in selected)

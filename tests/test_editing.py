@@ -31,7 +31,7 @@ async def test_save_reopen_preserve_other_data_and_search(tmp_path):
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("down", "right", "enter")
+        await pilot.press("down", "right", "right", "enter")
         editor = app.query_one(TitleEditor)
         await pilot.pause()
         assert editor.value == "Original title"
@@ -46,7 +46,7 @@ async def test_save_reopen_preserve_other_data_and_search(tmp_path):
         assert not app.query(TitleEditor)
         assert tree.cursor_node.data.id == "b"
         assert tree.cursor_node.label.plain == "Renamed title"
-        assert app.query_one(ActionBar).selected == 1
+        assert app.query_one(ActionBar).selected == 0
         assert app.query_one(ActionBar).visible
         assert tree.cursor_node.is_expanded
         assert [result.task.id for result in app.search.find("Renamed")] == ["b"]
@@ -68,7 +68,7 @@ async def test_cancel_preserves_scope_selection_scroll_and_file(tmp_path):
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("f", "space", "right")
+        await pilot.press("f", "space", "right", "right")
         before = store.path.read_bytes()
         timestamp = store.path.stat().st_mtime_ns
         node = tree.cursor_node
@@ -79,7 +79,7 @@ async def test_cancel_preserves_scope_selection_scroll_and_file(tmp_path):
         assert not node.is_expanded
         assert tree.scroll_y == scroll
         assert app.query_one("#repository").content.plain == "Repo | Root / Branch"
-        assert app.query_one(ActionBar).selected == 1
+        assert app.query_one(ActionBar).selected == 0
         assert app.query_one(ActionBar).visible
     assert store.path.read_bytes() == before
     assert store.path.stat().st_mtime_ns == timestamp
@@ -91,7 +91,7 @@ async def test_invalid_title_retains_draft_and_allows_cancel(tmp_path, title):
     before = store.path.read_bytes()
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("right", "enter")
+        await pilot.press("right", "right", "enter")
         editor = app.query_one(TitleEditor)
         editor.value = title
         await pilot.press("enter")
@@ -108,7 +108,7 @@ async def test_edit_shortcut_isolation_and_native_editing_keys(tmp_path):
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("down", "right", "enter")
+        await pilot.press("down", "right", "right", "enter")
         editor = app.query_one(TitleEditor)
         selected = tree.cursor_node
         editor.value = ""
@@ -118,7 +118,7 @@ async def test_edit_shortcut_isolation_and_native_editing_keys(tmp_path):
         assert app.focused is editor
         assert tree.cursor_node is selected
         assert app.is_running
-        assert app.query_one(ActionBar).selected == 1
+        assert app.query_one(ActionBar).selected == 2
         editor.value = "abcd"
         await pilot.press("home", "delete", "end", "backspace", "left", "x", "right")
         assert editor.value == "bxc"
@@ -131,7 +131,7 @@ async def test_save_failure_retains_text_and_allows_retry(tmp_path, monkeypatch)
     before = store.path.read_bytes()
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("right", "enter")
+        await pilot.press("right", "right", "enter")
         editor = app.query_one(TitleEditor)
         editor.value = "New branch"
         with patch("tasktree.store.os.replace", side_effect=PermissionError("File is locked")):
@@ -152,7 +152,7 @@ async def test_save_failure_then_cancel_does_not_write(tmp_path):
     before = store.path.read_bytes()
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("right", "enter")
+        await pilot.press("right", "right", "enter")
         app.query_one(TitleEditor).value = "Draft"
         with patch("tasktree.store.os.replace", side_effect=OSError("Disk error")):
             await pilot.press("enter", "escape")
@@ -203,7 +203,7 @@ async def test_edit_scrolled_row_preserves_geometry_scroll_and_expansion(tmp_pat
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test(size=(60, 13)) as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press(*(["down"] * 14), "right")
+        await pilot.press(*(["down"] * 14), "right", "right")
         before = tree.scroll_y
         node = tree.cursor_node
         await pilot.press("enter")
@@ -219,7 +219,7 @@ async def test_edit_scrolled_row_preserves_geometry_scroll_and_expansion(tmp_pat
         assert tree.cursor_node is node
         assert tree.scroll_y == before
         assert node.label.plain == "Saved title"
-        await pilot.press("enter")
+        await pilot.press("3")
         await pilot.resize_terminal(45, 13)
         await pilot.pause()
         assert app.query_one(TitleEditor).region.width <= 45

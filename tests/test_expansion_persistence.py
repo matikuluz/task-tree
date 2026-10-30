@@ -50,12 +50,12 @@ async def test_add_cancel_keeps_saved_expansion(tmp_path):
     store = store_at(tmp_path)
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "space", "escape")
+        await pilot.press("2", "home", "down", "space", "escape")
         tree = app.query_one(TaskTree)
         assert not tree.cursor_node.is_expanded
         assert not store.load()[0].expanded
         assert set(json.loads(store.path.read_text())["tasks"][0]) == {"id", "title", "children", "expanded"}
-        await pilot.press("enter", "home", "down", "space", "escape")
+        await pilot.press("2", "home", "down", "space", "escape")
         assert tree.cursor_node.is_expanded
         assert store.load()[0].expanded
 
@@ -67,7 +67,7 @@ async def test_failed_expansion_save_preserves_file_and_state(tmp_path, placemen
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         if placement:
-            await pilot.press("enter", "home", "down")
+            await pilot.press("2", "home", "down")
         with patch("tasktree.store.os.replace", side_effect=PermissionError("locked")):
             await pilot.press("space")
         assert store.path.read_bytes() == before
@@ -97,7 +97,7 @@ async def test_native_disclosure_toggle_uses_atomic_save_path(tmp_path, placemen
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
         if placement:
-            await pilot.press("enter", "home", "down")
+            await pilot.press("2", "home", "down")
             tree = app.screen.query_one(PlacementTree)
         else:
             tree = app.query_one(TaskTree)

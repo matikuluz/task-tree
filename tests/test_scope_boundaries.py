@@ -127,7 +127,7 @@ async def test_boundary_shortcuts_are_disabled_in_inline_editor():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("down", "right", "enter")
+        await pilot.press("down", "right", "right", "enter")
         editor = app.query_one(TitleEditor)
         selected = tree.cursor_node
         value = editor.value
@@ -138,7 +138,7 @@ async def test_boundary_shortcuts_are_disabled_in_inline_editor():
         assert tree.cursor_node is selected
         assert editor.value == value
         assert app.focused is editor
-        assert app.query_one(ActionBar).selected == 1
+        assert app.query_one(ActionBar).selected == 2
         await pilot.press("escape")
 
 

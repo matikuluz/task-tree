@@ -270,6 +270,7 @@ class TaskTree(Tree[Task], inherit_bindings=False):
         label = super().render_label(node, base_style, style)
         text = Text("> " if selected else "  ", no_wrap=True, overflow="ellipsis")
         text.append_text(label)
+        text.stylize("#ffffff" if selected else "#888888")
         if selected:
             text.stylize("bold")
         return text

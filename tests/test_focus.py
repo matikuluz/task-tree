@@ -68,14 +68,14 @@ async def test_focus_scope_boundaries_and_leaf_noop():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
-        await pilot.press("f", "up", "shift+up", "left", "right", "enter", "escape")
+        await pilot.press("f", "up", "shift+up", "left", "right", "enter")
         assert selected_id(tree) == "b"
         assert breadcrumb(app) == "Repo | Root / Task 1"
         await pilot.press("shift+down")
         assert selected_id(tree) == "e"
         await pilot.press("shift+down")
         assert selected_id(tree) == "e"
-        await pilot.press("down", "down", "shift+down", "shift+up", "f", "enter", "escape")
+        await pilot.press("down", "down", "shift+down", "shift+up", "f", "enter")
         assert selected_id(tree) == "f"
         assert breadcrumb(app) == "Repo | Root / Task 1"
         await pilot.press("up", "shift+up")

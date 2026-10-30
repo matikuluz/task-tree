@@ -102,7 +102,7 @@ async def test_ui_initial_row_and_navigation_to_folder_and_back():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
         bar = app.query_one(ActionBar)
-        await pilot.press("enter")
+        await pilot.press("2")
         screen = app.screen
         assert isinstance(screen, PlacementScreen)
         assert not bar.visible
@@ -128,7 +128,7 @@ async def test_placeholder_activation_and_conflicting_shortcuts_are_isolated():
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
         selected = tree.cursor_node
-        await pilot.press("enter")
+        await pilot.press("2")
         screen = app.screen
         assert isinstance(screen, PlacementScreen)
         current = screen.model.current
@@ -137,7 +137,7 @@ async def test_placeholder_activation_and_conflicting_shortcuts_are_isolated():
         assert screen.model.current == current
         assert tree.cursor_node is selected
         assert not app.query(Input)
-        assert app.query_one(ActionBar).selected == 0
+        assert app.query_one(ActionBar).selected == 1
         await pilot.press("up", "down")
         assert app.screen is screen
 
@@ -145,7 +145,7 @@ async def test_placeholder_activation_and_conflicting_shortcuts_are_isolated():
 async def test_empty_tree_shows_one_position_and_cancels():
     app = TaskTreeApp("Repo", [])
     async with app.run_test() as pilot:
-        await pilot.press("enter")
+        await pilot.press("2")
         screen = app.screen
         assert len(screen.model.entries) == 1
         assert screen.query_one(PlacementTree).last_line == 0
@@ -170,7 +170,7 @@ async def test_cancellation_restores_focused_browsing_state_and_scroll():
         expansion = tree.expansion_snapshot()
         path = app.query_one("#repository").content.plain
         search_ids = [entry.task.id for entry in app.search.entries]
-        await pilot.press("enter", "home", "down", "down", "enter", "end")
+        await pilot.press("2", "home", "down", "down", "enter", "end")
         assert len(app.screen.model.path) == 2
         assert not app.screen.model.expanded["0"]
         await pilot.press("escape")
@@ -187,7 +187,7 @@ async def test_cancellation_restores_focused_browsing_state_and_scroll():
 async def test_placement_scrolling_is_minimal_and_does_not_wrap():
     app = TaskTreeApp("Repo", [Task(str(i), f"Task {i}") for i in range(35)])
     async with app.run_test(size=(60, 12)) as pilot:
-        await pilot.press("enter", "home")
+        await pilot.press("2", "home")
         screen = app.screen
         options = screen.query_one(PlacementTree)
         assert options.scroll_y == centered_scroll(options)
@@ -226,7 +226,7 @@ async def test_placement_only_saves_expansion_preferences(tmp_path):
     timestamp = store.path.stat().st_mtime_ns
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "space", "enter", "enter", "home", "enter", "escape")
+        await pilot.press("2", "home", "down", "space", "enter", "enter", "home", "enter", "escape")
     data["tasks"][0]["expanded"] = False
     assert json.loads(store.path.read_text()) == data
 
@@ -251,7 +251,7 @@ async def test_transition_anchors_existing_task_after_layout_and_cancel(focused,
         old_scroll = browsing.scroll_y
         old_y = browsing.scrollable_content_region.y + browsing.cursor_line - int(old_scroll)
         old_line = browsing.render_line(browsing.cursor_line - int(old_scroll)).text
-        await pilot.press("enter")
+        await pilot.press("2")
         await pilot.pause()
         tree = app.screen.query_one(PlacementTree)
         line = next(i for i in range(tree.last_line + 1)
@@ -274,7 +274,7 @@ async def test_transition_anchors_existing_task_after_layout_and_cancel(focused,
 async def test_folder_labels_are_contextual_and_do_not_leave_rows_or_spacing():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "down", "down", "space")
+        await pilot.press("2", "home", "down", "down", "down", "space")
         screen = app.screen
         tree = screen.query_one(PlacementTree)
         assert key(screen.model.current) == ("folder", "b")
@@ -300,7 +300,7 @@ async def test_folder_labels_are_contextual_and_do_not_leave_rows_or_spacing():
 async def test_temporary_rows_use_native_connectors_before_and_after_children():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "down", "down", "down")
+        await pilot.press("2", "home", "down", "down", "down", "down")
         tree = app.screen.query_one(PlacementTree)
         rows = rendered_rows(tree)
         assert rows[1] == "├──   ▼ Nested"
@@ -322,7 +322,7 @@ async def test_placement_uses_browsing_blue_guides_and_label_only_selection():
     async with app.run_test() as pilot:
         browsing = app.query_one(TaskTree)
         active_guide_color = browsing.get_component_rich_style("tree--guides-selected").color
-        await pilot.press("enter", "home", "down", "down", "down", "down")
+        await pilot.press("2", "home", "down", "down", "down", "down")
         tree = app.screen.query_one(PlacementTree)
         assert tree.get_component_rich_style("tree--guides-selected").color == active_guide_color
         line = list(tree.render_line(tree.cursor_line))
@@ -343,7 +343,7 @@ async def test_placement_uses_browsing_blue_guides_and_label_only_selection():
 async def test_focused_scope_connectors_and_go_back_alignment():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "space", "enter", "down", "space")
+        await pilot.press("2", "home", "down", "space", "enter", "down", "space")
         tree = app.screen.query_one(PlacementTree)
         rows = rendered_rows(tree)
         assert rows[0] == "  Go back"

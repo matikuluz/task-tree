@@ -19,7 +19,7 @@ async def test_folder_option_tracks_expansion_and_stays_on_target(tmp_path, dele
         if delete:
             await pilot.press("left", "enter")
         else:
-            await pilot.press("enter", "home", "down")
+            await pilot.press("2", "home", "down")
         screen = app.screen
         tree = screen.query_one(PlacementTree)
         assert screen.model.current.kind == "task"
@@ -54,7 +54,7 @@ async def test_toggle_keeps_the_target_at_its_scrolled_position(delete):
         if delete:
             await pilot.press(*(["down"] * 20), "left", "enter")
         else:
-            await pilot.press("enter", "home", *(["down"] * 21))
+            await pilot.press("2", "home", *(["down"] * 21))
         tree = app.screen.query_one(PlacementTree)
         assert app.screen.model.current.task.id == "branch"
         before = (tree.cursor_line, tree.scroll_y)

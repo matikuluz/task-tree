@@ -99,7 +99,11 @@ A failed save is reported and leaves both the file and branch state unchanged.
 
 ## Action bar
 
-The bottom bar starts with Add selected: **[+ Add task]** [✎]. Left / Right
+The bottom bar starts in View mode. Left / Right highlight View, Add, Edit,
+and Delete; Enter activates the highlighted mode.
+Keys 1–4 activate these modes directly while browsing. Escape cancels an action
+and returns to View; saving an edit or creating a task also returns to View.
+Left / Right
 switches to Edit: [+] **[✎ Edit task]**, wrapping at either end. The entire
 selected item is bold; unselected items show only their bracketed symbol.
 Task selection remains highlighted, and Up / Down, sibling navigation, focus,

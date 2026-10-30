@@ -59,7 +59,7 @@ async def test_add_preserves_entry_view_then_centers_navigation():
         browsing = app.query_one(TaskTree)
         await pilot.press(*(["down"] * 15))
         old_y = browsing.cursor_line - int(browsing.scroll_y)
-        await pilot.press("enter")
+        await pilot.press("2")
         await pilot.pause()
         tree = app.screen.query_one(PlacementTree)
         assert tree.cursor_line - 1 - int(tree.scroll_y) == old_y

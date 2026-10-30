@@ -26,7 +26,7 @@ async def test_create_at_captured_position_and_reopen(tmp_path, empty, nested):
     store = make_store(tmp_path, empty)
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("enter")
+        await pilot.press("2")
         if nested:
             await pilot.press("home", "down", "space", "enter", "down")  # after First
         await pilot.press("enter")
@@ -61,7 +61,7 @@ async def test_invalid_input_shortcuts_and_cancel(tmp_path):
     async with app.run_test() as pilot:
         tree = app.query_one(TaskTree)
         selected = tree.cursor_node
-        await pilot.press("enter", "enter")
+        await pilot.press("2", "enter")
         screen = app.screen
         destination = screen.destination
         editor = app.screen.query_one(TitleEditor)
@@ -87,7 +87,7 @@ async def test_failed_save_retains_destination_and_retry_creates_once(tmp_path, 
     before = store.path.read_bytes()
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("enter", "enter")
+        await pilot.press("2", "enter")
         editor = app.screen.query_one(TitleEditor)
         editor.value = "Retry"
         destination = app.screen.destination
@@ -109,7 +109,7 @@ async def test_other_insertion_positions_keep_order_and_scope(tmp_path, position
     async with app.run_test() as pilot:
         if position == "nested-root-scope":
             await pilot.press("down")
-        await pilot.press("enter")
+        await pilot.press("2")
         if position != "nested-root-scope":
             await pilot.press("home" if position == "first" else "end")
         await pilot.press("enter")
@@ -128,7 +128,7 @@ async def test_cancel_draft_keeps_saved_expansion(tmp_path):
     store = make_store(tmp_path)
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "space", "down", "enter", "x", "escape")
+        await pilot.press("2", "home", "down", "space", "down", "enter", "x", "escape")
         assert not app.query_one(TaskTree).cursor_node.is_expanded
     assert [task.title for task in store.load()] == ["Branch", "Outside"]
     assert not store.load()[0].expanded
@@ -141,7 +141,7 @@ async def test_scrolled_creation_keeps_draft_row_position(tmp_path):
     ]}))
     app = TaskTreeApp("Repo", store.load(), store=store)
     async with app.run_test(size=(80, 13)) as pilot:
-        await pilot.press(*(["down"] * 15), "enter", "enter")
+        await pilot.press(*(["down"] * 15), "2", "enter")
         await pilot.pause()
         editor = app.screen.query_one(TitleEditor)
         y = editor.region.y
