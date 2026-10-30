@@ -28,7 +28,7 @@ async def test_create_at_captured_position_and_reopen(tmp_path, empty, nested):
     async with app.run_test() as pilot:
         await pilot.press("enter")
         if nested:
-            await pilot.press("home", "down", "enter", "down")  # after First
+            await pilot.press("home", "down", "space", "enter", "down")  # after First
         await pilot.press("enter")
         editor = app.screen.query_one(TitleEditor)
         assert editor.value == ""

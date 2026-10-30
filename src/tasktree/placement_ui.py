@@ -111,7 +111,7 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
     def compose(self) -> ComposeResult:
         yield Static("", id="placement-path")
         yield PlacementTree(self.model.delete)
-        yield Static(f"{'Delete' if self.model.delete else 'Add'}: ↑↓ Move  Home/End Ends  Enter Choose  Space Fold  Esc Cancel", id="placement-help")
+        yield Static(f"{'Delete' if self.model.delete else 'Add'}: ↑↓ Move Home/End Enter Choose Space Fold Esc Cancel | ▶ Enter folder", id="placement-help")
 
     def on_mount(self) -> None:
         self.query_one(PlacementTree).focus(scroll_visible=False)
@@ -133,7 +133,7 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
             text.append("Add task here")
         return text
 
-    def _render_entries(self) -> None:
+    def _render_entries(self, *, preserve_scroll: bool = False) -> None:
         tree = self.query_one(PlacementTree)
         scroll = tree.scroll_y
         tree.unselect()
@@ -163,7 +163,10 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
             # Textual 8.2.8 uses this visual flag to color a branch's native guides.
             # The cursor stays on the temporary row; task data and labels are unaffected.
             selected.parent._selected = True
-        if self._centering_started:
+        if preserve_scroll:
+            tree.scroll_to_region(Region(0, tree.cursor_line, 1, 1), animate=False,
+                                  immediate=True, force=True, x_axis=False)
+        elif self._centering_started:
             tree.scroll_to_line(tree.cursor_line, animate=False)
         tree.refresh()
         path = " / ".join(["Root", *(task.title for task in self.model.path)])
@@ -180,19 +183,21 @@ class PlacementScreen(ModalScreen[CreatedTask | None]):
         self._render_entries()
 
     def action_toggle(self) -> None:
-        self._centering_started = True
         entry = self.model.current
         if entry.kind in ("folder", "task") and entry.task.children and self._save_expansion is not None:
-            expanded = not self.model.expanded.get(entry.task.id, entry.task.expanded)
+            previous = self.model.expanded.setdefault(entry.task.id, entry.task.expanded)
+            expanded = not previous
             if not self._save_expansion(entry.task, expanded):
                 return
         self.model.toggle()
-        self._render_entries()
+        self._render_entries(preserve_scroll=True)
 
     async def action_activate(self) -> None:
         self._centering_started = True
         if self.model.delete and self.model.current.kind == "task":
             self.notify("Deletion — coming soon", timeout=2, markup=False)
+            return
+        if not self.model.delete and self.model.current.kind == "task":
             return
         if self.model.current.kind != "insert":
             self.model.enter()

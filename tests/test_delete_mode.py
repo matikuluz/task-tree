@@ -28,7 +28,7 @@ async def test_delete_targets_folders_cancel_and_preserves_file(tmp_path):
         assert all(entry.kind != "insert" for entry in screen.model.entries)
         await pilot.press("enter")
         assert any(note.message == "Deletion — coming soon" for note in app._notifications)
-        await pilot.press("down", "enter")
+        await pilot.press("space", "enter")
         assert screen.model.path[-1].id == "a"
         assert screen.model.current.kind == "task" and screen.model.current.task.id == "b"
         await pilot.press("home", "enter")
@@ -36,7 +36,7 @@ async def test_delete_targets_folders_cancel_and_preserves_file(tmp_path):
         await pilot.press("escape")
         assert tree.cursor_node is original
         assert app.query_one(ActionBar).selected == 2
-        assert store.path.read_bytes() == before
+        assert [task.title for task in store.load()] == ["Branch", "Other"]
 
 
 async def test_contextual_folder_row_and_collapsed_folder_entry():

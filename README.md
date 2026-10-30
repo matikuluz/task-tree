@@ -165,6 +165,11 @@ after that branch. Moving away removes the hint immediately. Selection uses the
 uses the same connector lines and blue active-branch guides as normal browsing,
 including the guide for a temporary row's insertion parent.
 
+`[Enter folder]` is available only on a selected collapsed branch. Space expands
+it in place and removes the option while keeping that branch targeted; Space
+again collapses it and restores the option. Expanded descendants remain visible
+for navigation. This rule also applies in Delete mode.
+
 | Placement key | Action |
 | --- | --- |
 | Up / Down | Previous / next insertion gap or folder option |

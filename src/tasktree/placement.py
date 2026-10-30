@@ -67,16 +67,18 @@ class PlacementModel:
         if not self.delete:
             self.rows.append(PlacementRow(depth, PlacementEntry("insert", ancestors)))
         for index, task in enumerate(tasks):
+            expanded = self.expanded.get(task.id, task.expanded)
             if self.delete:
                 self.rows.append(PlacementRow(depth, PlacementEntry("task", ancestors, index, task), task))
                 if task.children:
-                    self.rows.append(PlacementRow(depth, PlacementEntry("folder", ancestors, index, task), task))
-                    if self.expanded.get(task.id, task.expanded):
+                    if not expanded:
+                        self.rows.append(PlacementRow(depth, PlacementEntry("folder", ancestors, index, task), task))
+                    if expanded:
                         self._walk(task.children, (*ancestors, task), depth + 1)
                 continue
-            entry = PlacementEntry("folder", ancestors, index, task) if task.children else None
+            entry = PlacementEntry("task" if expanded else "folder", ancestors, index, task) if task.children else None
             self.rows.append(PlacementRow(depth, entry, task))
-            if task.children and self.expanded.get(task.id, True):
+            if task.children and expanded:
                 self._walk(task.children, (*ancestors, task), depth + 1)
             self.rows.append(PlacementRow(depth, PlacementEntry("insert", ancestors, index + 1)))
 
@@ -89,9 +91,12 @@ class PlacementModel:
     def toggle(self) -> None:
         entry = self.current
         if entry.kind in ("folder", "task") and entry.task is not None and entry.task.children:
-            self.expanded[entry.task.id] = not self.expanded.get(entry.task.id, True)
+            expanded = not self.expanded.get(entry.task.id, entry.task.expanded)
+            self.expanded[entry.task.id] = expanded
             self._build()
-            self.selected = self.entries.index(entry)
+            kind = "task" if expanded else "folder"
+            self.selected = next(i for i, item in enumerate(self.entries)
+                                 if item.kind == kind and item.task is not None and item.task.id == entry.task.id)
 
     def enter(self) -> bool:
         """Navigate a folder or Go back; return False for an insertion activation."""
@@ -104,8 +109,9 @@ class PlacementModel:
             exited = self.path[-1]
             self.path = self.path[:-1]
             self._build()
-            self.selected = next(index for index, item in enumerate(self.entries)
-                                 if item.kind == "folder" and item.task.id == exited.id)
+            choices = [index for index, item in enumerate(self.entries)
+                       if item.kind in ("folder", "task") and item.task is not None and item.task.id == exited.id]
+            self.selected = next((i for i in choices if self.entries[i].kind == "folder"), choices[0])
         else:
             return False
         return True

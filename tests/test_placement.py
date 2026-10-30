@@ -34,8 +34,8 @@ def key(entry):
 def test_insertion_order_and_initial_position_after_expanded_subtree():
     model = PlacementModel(tasks(), after_id="a")
     assert [key(entry) for entry in model.entries] == [
-        ("insert", None, 0), ("folder", "a"),
-        ("insert", "a", 0), ("folder", "b"),
+        ("insert", None, 0), ("task", "a"),
+        ("insert", "a", 0), ("task", "b"),
         ("insert", "b", 0), ("insert", "b", 1),
         ("insert", "a", 1), ("insert", "a", 2),
         ("insert", None, 1), ("insert", None, 2),
@@ -58,7 +58,7 @@ def test_collapsed_branches_folder_options_and_space_toggle():
     assert key(model.current) == ("folder", "a")
     model.toggle()
     assert model.path == ()
-    assert key(model.current) == ("folder", "a")
+    assert key(model.current) == ("task", "a")
     assert ("folder", "b") in [key(entry) for entry in model.entries]
     assert ("insert", "b", 0) not in [key(entry) for entry in model.entries]
     assert expansion == {"a": False, "b": False}  # copied, not mutated
@@ -109,7 +109,7 @@ async def test_ui_initial_row_and_navigation_to_folder_and_back():
         assert key(screen.model.current) == ("insert", None, 1)
         selected = next(row for row in screen.model.rows if row.entry == screen.model.current)
         assert screen._label(selected).plain == "Add task here"
-        await pilot.press("home", "down")
+        await pilot.press("home", "down", "space")
         assert key(screen.model.current) == ("folder", "a")
         folder = next(row for row in screen.model.rows if row.entry == screen.model.current)
         assert "Branch  [Enter folder]" in screen._label(folder).plain
@@ -170,9 +170,9 @@ async def test_cancellation_restores_focused_browsing_state_and_scroll():
         expansion = tree.expansion_snapshot()
         path = app.query_one("#repository").content.plain
         search_ids = [entry.task.id for entry in app.search.entries]
-        await pilot.press("enter", "home", "down", "down", "space", "enter", "end")
+        await pilot.press("enter", "home", "down", "down", "enter", "end")
         assert len(app.screen.model.path) == 2
-        assert app.screen.model.expanded["0"]
+        assert not app.screen.model.expanded["0"]
         await pilot.press("escape")
         assert tree.cursor_node is selected
         assert tree.scroll_y == scroll
@@ -274,27 +274,27 @@ async def test_transition_anchors_existing_task_after_layout_and_cancel(focused,
 async def test_folder_labels_are_contextual_and_do_not_leave_rows_or_spacing():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "down", "down")
+        await pilot.press("enter", "home", "down", "down", "down", "space")
         screen = app.screen
         tree = screen.query_one(PlacementTree)
         assert key(screen.model.current) == ("folder", "b")
         rows = rendered_rows(tree)
-        assert len(rows) == 5
+        assert len(rows) == 4
         assert sum("[Enter folder]" in row for row in rows) == 1
-        assert "+ ▼ Nested  [Enter folder]" in rows[1]
+        assert "+ ▶ Nested  [Enter folder]" in rows[1]
         assert rows[0].endswith("Branch")
         await pilot.press("down")
         rows = rendered_rows(tree)
-        assert len(rows) == 6  # only the insertion row was added
+        assert len(rows) == 5  # only the insertion row was added
         assert not any("[Enter folder]" in row for row in rows)
         assert rows[1].endswith("Nested")
         await pilot.press("up", "space")
         rows = rendered_rows(tree)
-        assert len(rows) == 4
-        assert "+ ▶ Nested  [Enter folder]" in rows[1]
-        assert not any("Leaf" in row for row in rows)
+        assert len(rows) == 5
+        assert "+ ▼ Nested" in rows[1]
+        assert not any("[Enter folder]" in row for row in rows)
         await pilot.press("space")
-        assert len(rendered_rows(tree)) == 5
+        assert len(rendered_rows(tree)) == 4
 
 
 async def test_temporary_rows_use_native_connectors_before_and_after_children():
@@ -336,22 +336,22 @@ async def test_placement_uses_browsing_blue_guides_and_label_only_selection():
         await pilot.press("up")
         selected_line = list(tree.render_line(tree.cursor_line))
         assert len({segment.style.bgcolor for segment in selected_line}) == 1
-        assert "+ ▼ Nested  [Enter folder]" in tree.render_line(tree.cursor_line).text
+        assert "+ ▼ Nested" in tree.render_line(tree.cursor_line).text
+        assert "[Enter folder]" not in tree.render_line(tree.cursor_line).text
 
 
 async def test_focused_scope_connectors_and_go_back_alignment():
     app = TaskTreeApp("Repo", tasks())
     async with app.run_test() as pilot:
-        await pilot.press("enter", "home", "down", "enter", "down")
+        await pilot.press("enter", "home", "down", "space", "enter", "down", "space")
         tree = app.screen.query_one(PlacementTree)
         rows = rendered_rows(tree)
         assert rows[0] == "  Go back"
-        assert rows[1] == "+ ▼ Nested  [Enter folder]"
-        assert rows[2] == "└──   Leaf"
+        assert rows[1] == "+ ▶ Nested  [Enter folder]"
         await pilot.press("enter")
         rows = rendered_rows(tree)
         assert rows == ["  Go back", "+ Add task here", "  Leaf"]
         await pilot.press("home", "enter")
-        assert rendered_rows(tree)[1] == "+ ▼ Nested  [Enter folder]"
+        assert rendered_rows(tree)[1] == "+ ▶ Nested  [Enter folder]"
         await pilot.press("home", "enter")
-        assert rendered_rows(tree)[0] == "+ ▼ Branch  [Enter folder]"
+        assert rendered_rows(tree)[0] == "+ ▶ Branch  [Enter folder]"
